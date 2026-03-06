@@ -25,7 +25,7 @@
       ansible_python_interpreter: /usr/libexec/platform-python
     loop:
       - vscode
-      - terraform
+      - wazuh
       - vault
 #
 - name: Demo Playbook for the ansible-runner API
