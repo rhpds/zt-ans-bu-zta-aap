@@ -193,16 +193,16 @@ virtualmachines:
     networks:
       - default
     services:
-      - name: node03-http
+      - name: node01-http
         ports:
           - port: 80
             protocol: TCP
             targetPort: 80
-            name: node03
+            name: node01
     routes:
-      - name: node03-web
-        host: node03
-        service: node03-http
+      - name: node01-web
+        host: node01
+        service: node01-http
         targetPort: 80
         tls: true
         tls_termination: Edge
@@ -227,16 +227,16 @@ virtualmachines:
     networks:
       - default
     services:
-      - name: node03-http
+      - name: central-http
         ports:
           - port: 80
             protocol: TCP
             targetPort: 80
-            name: node03
+            name: central
     routes:
-      - name: node03-web
-        host: node03
-        service: node03-http
+      - name: central-web
+        host: central
+        service: central-http
         targetPort: 80
         tls: true
         tls_termination: Edge
@@ -261,16 +261,16 @@ virtualmachines:
     networks:
       - default
     services:
-      - name: node03-http
+      - name: wazuh-http
         ports:
           - port: 80
             protocol: TCP
             targetPort: 80
-            name: node03
+            name: wazuh
     routes:
-      - name: node03-web
-        host: node03
-        service: node03-http
+      - name: wazuh-web
+        host: wazuh
+        service: wazuh-http
         targetPort: 80
         tls: true
         tls_termination: Edge
