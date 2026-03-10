@@ -254,7 +254,7 @@ virtualmachines:
     image: "project-zero-wazuh-base-all"
     memory: "16G"
     cores: 2
-    image_size: "50Gi"
+    image_size: "55Gi"
     tags:
       - key: "AnsibleGroup"
         value: "isolated"
