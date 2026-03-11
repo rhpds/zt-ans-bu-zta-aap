@@ -216,13 +216,11 @@ virtualmachines:
       runcmd:
         - echo "PasswordAuthentication yes" > /etc/ssh/sshd_config.d/50-cloud-init.conf
         - systemctl reload sshd
-
-
   - name: "central"
     image: "rhel-9.5"
-    memory: "16G"
-    cores: 2
-    image_size: "30Gi"
+    memory: "32G"
+    cores: 4
+    image_size: "50Gi"
     tags:
       - key: "AnsibleGroup"
         value: "isolated"
@@ -230,19 +228,55 @@ virtualmachines:
       - default
       - secondary
     services:
-      - name: central-http
+      - name: idm-http
         ports:
           - port: 80
             protocol: TCP
             targetPort: 80
-            name: central
+            name: idm-http
+      - name: keycloak-http
+        ports:
+          - port: 8080
+            protocol: TCP
+            targetPort: 8080
+            name: keycloak-http
+      - name: idm-https
+        ports:
+          - port: 443
+            protocol: TCP
+            targetPort: 443
+            name: idm-https
+      - name: keyclock-https
+        ports:
+          - port: 8443
+            protocol: TCP
+            targetPort: 8443
+            name: keyclock-https            
     routes:
-      - name: central-web
+      - name: idm-http
         host: central
-        service: central-http
+        service: idm-http
         targetPort: 80
         tls: true
         tls_termination: Edge
+      - name: idm-https
+        host: central
+        service: idm-https
+        targetPort: 443
+        tls: true
+        tls_termination: Edge
+      - name: keycloak-http
+        host: central
+        service: keycloak-http
+        targetPort: 8080
+        tls: true
+        tls_termination: Edge        
+      - name: keycloak-https
+        host: central
+        service: keycloak-https
+        targetPort: 8443
+        tls: true
+        tls_termination: Edge         
     userdata: |-
       #cloud-config
       user: rhel
@@ -251,8 +285,6 @@ virtualmachines:
       runcmd:
         - echo "PasswordAuthentication yes" > /etc/ssh/sshd_config.d/50-cloud-init.conf
         - systemctl reload sshd
-
-
   - name: "wazuh"
     image: "project-zero-wazuh-base-all"
     memory: "16G"
@@ -271,6 +303,24 @@ virtualmachines:
             protocol: TCP
             targetPort: 80
             name: wazuh
+      - name: wazuh-api
+        ports:
+          - port: 55000
+            protocol: TCP
+            targetPort: 55000
+            name: wazuh-api      
+      - name: wazuh-index
+        ports:
+          - port: 9200
+            protocol: TCP
+            targetPort: 9200
+            name: index     
+      - name: wazuh-grafana
+        ports:
+          - port: 3000
+            protocol: TCP
+            targetPort: 3000
+            name: wazuh-grafana            
     routes:
       - name: wazuh-web
         host: wazuh
