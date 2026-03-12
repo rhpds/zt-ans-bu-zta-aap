@@ -316,7 +316,7 @@ virtualmachines:
           - port: 9200
             protocol: TCP
             targetPort: 9200
-            name: index     
+            name: wazuh-index     
       - name: wazuh-grafana
         ports:
           - port: 3000
@@ -324,7 +324,7 @@ virtualmachines:
             targetPort: 3000
             name: wazuh-grafana            
     routes:
-      - name: wazuh-web
+      - name: wazuh
         host: wazuh
         service: wazuh-https
         targetPort: 443
