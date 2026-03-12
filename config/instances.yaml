@@ -216,8 +216,9 @@ virtualmachines:
       runcmd:
         - echo "PasswordAuthentication yes" > /etc/ssh/sshd_config.d/50-cloud-init.conf
         - systemctl reload sshd
+        
   - name: "central"
-    image: "rhel-idm-opa"
+    image: "rhel-idm-opa-kc"
     memory: "32G"
     cores: 4
     image_size: "50Gi"
@@ -285,6 +286,7 @@ virtualmachines:
       runcmd:
         - echo "PasswordAuthentication yes" > /etc/ssh/sshd_config.d/50-cloud-init.conf
         - systemctl reload sshd
+
   - name: "wazuh"
     image: "project-zero-wazuh-base-all"
     memory: "16G"
