@@ -157,5 +157,5 @@ tee /tmp/zta-setup.yml << EOF
           - "============================================="
 EOF
 
-ansible-playbook -i /tmp/inventory /tmp/zta-setup.yml
+#ansible-playbook -i /tmp/inventory /tmp/zta-setup.yml
 
