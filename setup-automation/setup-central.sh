@@ -17,9 +17,6 @@ subscription-manager register --org=${SATELLITE_ORG} --activationkey=${SATELLITE
 ## install python3 libraries needed for the Cloud Report
 dnf install -y python3-pip python3-libsemanage git ansible-core python-requests
 
-git clone https://github.com/nmartins0611/zta-aap-workshop.git /tmp/aap-workshop-setup
-
-
 echo "192.168.1.10 control.zta.lab control" >> /etc/hosts
 echo "192.168.1.11 central.zta.lab  keycloak.zta.lab  opa.zta.lab" >> /etc/hosts
 echo "192.168.1.12 vault.zta.lab vault" >> /etc/hosts
