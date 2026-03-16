@@ -48,7 +48,7 @@ podman run -d \
   -e KC_HTTPS_CERTIFICATE_KEY_FILE=/opt/certs/server.key \
   -e KC_HTTP_ENABLED=true \
   -v /opt/keycloak/certs:/opt/certs:Z \
-  registry.redhat.io/rhbk/keycloak-rhel9 \
+  b89b0ff472ca \
   start \
   --https-port=8443 \
   --http-enabled=true
