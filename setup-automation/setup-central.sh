@@ -30,6 +30,14 @@ git clone https://github.com/nmartins0611/zta-workshop-aap.git /tmp/zta-workshop
 
 mkdir /tmp/group_vars
 
+
+echo "192.168.1.10 control.zta.lab control" >> /etc/hosts
+echo "192.168.1.11 central.zta.lab  keycloak.zta.lab  opa.zta.lab" >> /etc/hosts
+echo "192.168.1.12 vault.zta.lab vault" >> /etc/hosts
+echo "192.168.1.13 wazuh.zta.lab wazuh" >> /etc/hosts
+echo "192.168.1.14 node01.zta.lab node01" >> /etc/hosts
+echo "192.168.1.15 netbox.zta.lab netbox" >> /etc/hosts
+
 tee /tmp/group_vars/all.yml << EOF
 ---
 # ── Lab Identity ─────────────────────────────────────────────────────
