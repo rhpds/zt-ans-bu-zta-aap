@@ -25,7 +25,7 @@ retry "update-ca-trust"
 retry "rpm -Uhv --force https://${SATELLITE_URL}/pub/katello-ca-consumer-latest.noarch.rpm"
 retry "subscription-manager register --org=${SATELLITE_ORG} --activationkey=${SATELLITE_ACTIVATIONKEY}"
 retry "dnf install -y dnf-utils git nano"
-retry "dnf install -y python3-pip python3-libsemanage git ansible-core python-requests"
+retry "dnf install -y python3-pip python3-libsemanage git ansible-core python-requests ipa-client sssd oddjob-mkhomedir"
 setenforce 0
 git clone https://github.com/nmartins0611/zta-workshop-aap.git /tmp/zta-workshop-aap
 
