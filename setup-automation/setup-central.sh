@@ -1,33 +1,40 @@
 #!/bin/bash
 
-systemctl stop systemd-tmpfiles-setup.service
-systemctl disable systemd-tmpfiles-setup.service
-
-
-rm -rf /etc/yum.repos.d/*
-yum clean all
-subscription-manager clean
-
 retry() {
+    local cmd="$1"
+    local desc="${2:-$1}"
     for i in {1..3}; do
-        echo "Attempt $i: $2"
-        if $1; then
+        echo "Attempt $i: $desc"
+        if eval "$cmd"; then
             return 0
         fi
         [ $i -lt 3 ] && sleep 5
     done
-    echo "Failed after 3 attempts: $2"
+    echo "Failed after 3 attempts: $desc"
     exit 1
 }
 
-retry "curl -k -L https://${SATELLITE_URL}/pub/katello-server-ca.crt -o /etc/pki/ca-trust/source/anchors/${SATELLITE_URL}.ca.crt"
-retry "update-ca-trust"
-retry "rpm -Uhv --force https://${SATELLITE_URL}/pub/katello-ca-consumer-latest.noarch.rpm"
-retry "subscription-manager register --org=${SATELLITE_ORG} --activationkey=${SATELLITE_ACTIVATIONKEY}"
-retry "dnf install -y dnf-utils git nano"
-retry "dnf install -y python3-pip python3-libsemanage git ansible-core python-requests ipa-client sssd oddjob-mkhomedir"
+# Disable tmpfiles service
+systemctl stop systemd-tmpfiles-setup.service
+systemctl disable systemd-tmpfiles-setup.service
+
+# Clean up existing repos and subscriptions
+rm -rf /etc/yum.repos.d/*
+yum clean all
+subscription-manager clean
+
+# Register with Satellite
+retry "curl -k -L https://${SATELLITE_URL}/pub/katello-server-ca.crt -o /etc/pki/ca-trust/source/anchors/${SATELLITE_URL}.ca.crt" "Download Katello CA cert"
+retry "update-ca-trust" "Update CA trust"
+retry "rpm -Uhv --force https://${SATELLITE_URL}/pub/katello-ca-consumer-latest.noarch.rpm" "Install Katello consumer RPM"
+retry "subscription-manager register --org=${SATELLITE_ORG} --activationkey=${SATELLITE_ACTIVATIONKEY}" "Register with Satellite"
+
+# Install packages
+retry "dnf install -y dnf-utils git nano" "Install base packages"
+retry "dnf install -y python3-pip python3-libsemanage git ansible-core python-requests ipa-client sssd oddjob-mkhomedir" "Install system packages"
+
 setenforce 0
-git clone https://github.com/nmartins0611/zta-workshop-aap.git /tmp/zta-workshop-aap
+retry "git clone https://github.com/nmartins0611/zta-workshop-aap.git /tmp/zta-workshop-aap" "Clone ZTA workshop repo"
 
 mkdir /tmp/group_vars
 
