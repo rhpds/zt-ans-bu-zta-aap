@@ -1,28 +1,35 @@
 #!/bin/bash
 
-rm -rf /etc/yum.repos.d/*
-yum clean all
-subscription-manager clean
-
 retry() {
+    local cmd="$1"
+    local desc="${2:-$1}"
     for i in {1..3}; do
-        echo "Attempt $i: $2"
-        if $1; then
+        echo "Attempt $i: $desc"
+        if eval "$cmd"; then
             return 0
         fi
         [ $i -lt 3 ] && sleep 5
     done
-    echo "Failed after 3 attempts: $2"
+    echo "Failed after 3 attempts: $desc"
     exit 1
 }
 
-retry "curl -k -L https://${SATELLITE_URL}/pub/katello-server-ca.crt -o /etc/pki/ca-trust/source/anchors/${SATELLITE_URL}.ca.crt"
-retry "update-ca-trust"
-retry "rpm -Uhv --force https://${SATELLITE_URL}/pub/katello-ca-consumer-latest.noarch.rpm"
-retry "subscription-manager register --org=${SATELLITE_ORG} --activationkey=${SATELLITE_ACTIVATIONKEY} --force"
-retry "dnf install -y dnf-utils git nano"
-retry "dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo"
-retry "dnf install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y"
+# Clean up existing repos and subscriptions
+rm -rf /etc/yum.repos.d/*
+yum clean all
+subscription-manager clean
+
+# Register with Satellite
+retry "curl -k -L https://${SATELLITE_URL}/pub/katello-server-ca.crt -o /etc/pki/ca-trust/source/anchors/${SATELLITE_URL}.ca.crt" "Download Katello CA cert"
+retry "update-ca-trust" "Update CA trust"
+retry "rpm -Uhv --force https://${SATELLITE_URL}/pub/katello-ca-consumer-latest.noarch.rpm" "Install Katello consumer RPM"
+retry "subscription-manager register --org=${SATELLITE_ORG} --activationkey=${SATELLITE_ACTIVATIONKEY} --force" "Register with Satellite"
+
+# Install packages and Docker
+retry "dnf install -y dnf-utils git nano" "Install base packages"
+retry "dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo" "Add Docker repo"
+retry "dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin" "Install Docker"
+
 setenforce 0
 
 nmcli connection add type ethernet con-name eth1 ifname eth1 ipv4.addresses 192.168.1.15/24 ipv4.method manual connection.autoconnect yes
