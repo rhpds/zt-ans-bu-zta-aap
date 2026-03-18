@@ -36,9 +36,14 @@ for var in SATELLITE_URL SATELLITE_ORG SATELLITE_ACTIVATIONKEY; do
 done
 
 ###############################################################################
-# Clean up subscriptions
+# Clean up subscriptions and stale repos
 ###############################################################################
 dnf clean all || true
+rm -f /etc/yum.repos.d/redhat-rhui*.repo
+
+# Disable AWS-specific dnf plugin (noisy traceback on non-AWS or post-Satellite)
+sed -i 's/enabled=1/enabled=0/' /etc/dnf/plugins/amazon-id.conf 2>/dev/null || true
+
 subscription-manager unregister 2>/dev/null || true
 subscription-manager remove --all 2>/dev/null || true
 subscription-manager clean
@@ -85,7 +90,6 @@ retry "Install IPA client packages" \
 
 retry "Install Python3 libraries" \
     dnf install -y python3-pip python3-libsemanage
-
 ###############################################################################
 # SELinux
 ###############################################################################
