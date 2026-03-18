@@ -86,7 +86,7 @@ fi
 # 3. Clean repos & subscriptions (only if not registered)
 ###############################################################################
 
-if subscription-manager status &>/dev/null; then
+if subscription-manager identity &>/dev/null; then
     echo "SKIP: Already registered with Satellite – skipping clean/unregister"
 else
     echo "Cleaning existing repos and subscriptions..."
@@ -125,7 +125,7 @@ run_if_needed "Install Katello consumer RPM" \
     rpm -Uhv --force "https://${SATELLITE_URL}/pub/katello-ca-consumer-latest.noarch.rpm"
 
 run_if_needed "Register with Satellite" \
-    subscription-manager status \
+    subscription-manager identity \
     -- \
     subscription-manager register \
         --org="${SATELLITE_ORG}" \

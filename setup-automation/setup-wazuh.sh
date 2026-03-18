@@ -115,7 +115,7 @@ nmcli connection up enp2s0 || true
 # 5. Clean repos & subscriptions (only if not registered)
 ###############################################################################
 
-if subscription-manager status &>/dev/null; then
+if subscription-manager identity &>/dev/null; then
     echo "SKIP: Already registered with Satellite – skipping clean/unregister"
 else
     echo "Cleaning existing repos and subscriptions..."
@@ -154,7 +154,7 @@ run_if_needed "Install Katello consumer RPM" \
     rpm -Uhv --force "https://${SATELLITE_URL}/pub/katello-ca-consumer-latest.noarch.rpm"
 
 run_if_needed "Register with Satellite" \
-    subscription-manager status \
+    subscription-manager identity \
     -- \
     subscription-manager register \
         --org="${SATELLITE_ORG}" \
@@ -168,9 +168,9 @@ retry "Refresh subscription" \
 ###############################################################################
 
 run_if_needed "Install Python3 libraries" \
-    rpm -q python3-pip python3-libsemanage \
+    rpm -q python3-libsemanage \
     -- \
-    dnf install -y python3-pip python3-libsemanage
+    dnf install -y python3-libsemanage
 
 ###############################################################################
 # 8. Wazuh deployment playbook
