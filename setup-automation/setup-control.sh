@@ -1,15 +1,15 @@
-#!/bin/bash
+# #!/bin/bash
 # set -euo pipefail
 
 # ###############################################################################
-# # Retry helper
+# # Helpers
 # ###############################################################################
+
 # retry() {
 #     local desc="$1"
 #     shift
 #     local max_attempts=3
 #     local delay=5
-
 #     for ((i = 1; i <= max_attempts; i++)); do
 #         echo "Attempt $i/$max_attempts: $desc"
 #         if "$@"; then
@@ -20,14 +20,30 @@
 #             sleep $delay
 #         fi
 #     done
-
 #     echo "FATAL: Failed after $max_attempts attempts: $desc"
 #     exit 1
 # }
 
+# # Usage: run_if_needed "Description" check_cmd [args...] -- action_cmd [args...]
+# run_if_needed() {
+#     local desc="$1"
+#     shift
+#     local check=()
+#     while [[ "$1" != "--" ]]; do
+#         check+=("$1"); shift
+#     done
+#     shift  # drop the --
+#     if "${check[@]}" &>/dev/null; then
+#         echo "SKIP (already done): $desc"
+#     else
+#         retry "$desc" "$@"
+#     fi
+# }
+
 # ###############################################################################
-# # Validate required variables
+# # 1. Validate required variables
 # ###############################################################################
+
 # for var in SATELLITE_URL SATELLITE_ORG SATELLITE_ACTIVATIONKEY; do
 #     if [ -z "${!var:-}" ]; then
 #         echo "ERROR: $var is not set"
@@ -36,64 +52,104 @@
 # done
 
 # ###############################################################################
-# # Clean up subscriptions and stale repos
+# # 2. Clean repos & subscriptions
+# #    Gate on registration status to avoid wiping a valid setup on re-run
 # ###############################################################################
-# dnf clean all || true
-# rm -f /etc/yum.repos.d/redhat-rhui*.repo
 
-# # Disable AWS-specific dnf plugin (noisy traceback on non-AWS or post-Satellite)
-# sed -i 's/enabled=1/enabled=0/' /etc/dnf/plugins/amazon-id.conf 2>/dev/null || true
+# if subscription-manager status &>/dev/null; then
+#     echo "SKIP: Already registered with Satellite – skipping clean/unregister"
+# else
+#     echo "Cleaning existing repos and subscriptions..."
+#     dnf clean all || true
+#     rm -f /etc/yum.repos.d/redhat-rhui*.repo
 
-# subscription-manager unregister 2>/dev/null || true
-# subscription-manager remove --all 2>/dev/null || true
-# subscription-manager clean
+#     # Disable AWS-specific dnf plugin (noisy traceback on non-AWS or post-Satellite)
+#     sed -i 's/enabled=1/enabled=0/' /etc/dnf/plugins/amazon-id.conf 2>/dev/null || true
 
-# # Remove old Katello consumer RPM if present
-# OLD_KATELLO=$(rpm -qa | grep katello-ca-consumer || true)
-# if [ -n "$OLD_KATELLO" ]; then
-#     rpm -e "$OLD_KATELLO"
+#     subscription-manager unregister 2>/dev/null || true
+#     subscription-manager remove --all 2>/dev/null || true
+#     subscription-manager clean
+
+#     OLD_KATELLO=$(rpm -qa | grep katello-ca-consumer || true)
+#     if [ -n "$OLD_KATELLO" ]; then
+#         rpm -e "$OLD_KATELLO"
+#     fi
 # fi
 
 # ###############################################################################
-# # Register with Satellite
+# # 3. Register with Satellite
 # ###############################################################################
-# retry "Download Katello CA cert" \
-#     curl -sS -k -L \
-#     "https://${SATELLITE_URL}/pub/katello-server-ca.crt" \
-#     -o "/etc/pki/ca-trust/source/anchors/${SATELLITE_URL}.ca.crt"
+
+# CA_CERT="/etc/pki/ca-trust/source/anchors/${SATELLITE_URL}.ca.crt"
+
+# run_if_needed "Download Katello CA cert" \
+#     test -f "${CA_CERT}" \
+#     -- \
+#     curl -fsSkL \
+#         "https://${SATELLITE_URL}/pub/katello-server-ca.crt" \
+#         -o "${CA_CERT}"
 
 # retry "Update CA trust" \
 #     update-ca-trust extract
 
-# retry "Install Katello consumer RPM" \
+# run_if_needed "Install Katello consumer RPM" \
+#     rpm -q katello-ca-consumer \
+#     -- \
 #     rpm -Uhv --force "https://${SATELLITE_URL}/pub/katello-ca-consumer-latest.noarch.rpm"
 
-# retry "Register with Satellite" \
+# run_if_needed "Register with Satellite" \
+#     subscription-manager status \
+#     -- \
 #     subscription-manager register \
-#     --org="${SATELLITE_ORG}" \
-#     --activationkey="${SATELLITE_ACTIVATIONKEY}"
+#         --org="${SATELLITE_ORG}" \
+#         --activationkey="${SATELLITE_ACTIVATIONKEY}"
 
 # retry "Refresh subscription" \
 #     subscription-manager refresh
 
 # ###############################################################################
-# # Install packages
+# # 4. Install packages
 # ###############################################################################
-# retry "Install base packages" \
+
+# run_if_needed "Install base packages" \
+#     rpm -q dnf-utils git nano \
+#     -- \
 #     dnf install -y dnf-utils git nano
 
-# retry "Add Docker repo" \
+# DOCKER_REPO_FILE="/etc/yum.repos.d/docker-ce.repo"
+
+# run_if_needed "Add Docker repo" \
+#     test -f "${DOCKER_REPO_FILE}" \
+#     -- \
 #     dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
 
-# retry "Install IPA client packages" \
+# run_if_needed "Install IPA client packages" \
+#     rpm -q ipa-client sssd oddjob-mkhomedir \
+#     -- \
 #     dnf install -y ipa-client sssd oddjob-mkhomedir
 
-# retry "Install Python3 libraries" \
+# run_if_needed "Install Python3 libraries" \
+#     rpm -q python3-pip python3-libsemanage \
+#     -- \
 #     dnf install -y python3-pip python3-libsemanage
+
 # ###############################################################################
-# # SELinux
+# # 5. SELinux
 # ###############################################################################
-# setenforce 0
+
+# CURRENT_MODE=$(getenforce)
+# if [ "${CURRENT_MODE}" = "Permissive" ] || [ "${CURRENT_MODE}" = "Disabled" ]; then
+#     echo "SKIP: SELinux already in ${CURRENT_MODE} mode"
+# else
+#     setenforce 0
+#     echo "SELinux set to Permissive"
+# fi
+
+# echo "✓ Setup complete"
+###############################################################################
+# SELinux
+###############################################################################
+setenforce 0
 
 ###############################################################################
 # /etc/hosts
