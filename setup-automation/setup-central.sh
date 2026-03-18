@@ -1,4 +1,9 @@
 #!/bin/bash
+set -euo pipefail
+
+# ─────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────
 
 retry() {
     local cmd="$1"
@@ -10,30 +15,96 @@ retry() {
         fi
         [ $i -lt 3 ] && sleep 5
     done
-    echo "Failed after 3 attempts: $desc"
+    echo "ERROR: Failed after 3 attempts: $desc"
     exit 1
 }
 
-# Disable tmpfiles service
-systemctl stop systemd-tmpfiles-setup.service
-systemctl disable systemd-tmpfiles-setup.service
+# Run a command only if a condition check fails (i.e. work not yet done)
+# Usage: run_if_needed "check_cmd" "action_cmd" "description"
+run_if_needed() {
+    local check="$1"
+    local cmd="$2"
+    local desc="$3"
+    if eval "$check" &>/dev/null; then
+        echo "SKIP (already done): $desc"
+    else
+        retry "$cmd" "$desc"
+    fi
+}
 
-# Clean up existing repos and subscriptions
-rm -rf /etc/yum.repos.d/*
-yum clean all
-subscription-manager clean
+# ─────────────────────────────────────────────
+# 1. Disable tmpfiles service
+# ─────────────────────────────────────────────
 
-# Register with Satellite
-retry "curl -k -L https://${SATELLITE_URL}/pub/katello-server-ca.crt -o /etc/pki/ca-trust/source/anchors/${SATELLITE_URL}.ca.crt" "Download Katello CA cert"
+if systemctl is-active --quiet systemd-tmpfiles-setup.service; then
+    systemctl stop systemd-tmpfiles-setup.service
+else
+    echo "SKIP: systemd-tmpfiles-setup already stopped"
+fi
+
+if systemctl is-enabled --quiet systemd-tmpfiles-setup.service 2>/dev/null; then
+    systemctl disable systemd-tmpfiles-setup.service
+else
+    echo "SKIP: systemd-tmpfiles-setup already disabled"
+fi
+
+# ─────────────────────────────────────────────
+# 2. Clean up repos and subscriptions
+#    Only wipe if we are NOT already registered
+#    (avoids nuking a valid subscription on re-run)
+# ─────────────────────────────────────────────
+
+if subscription-manager status &>/dev/null; then
+    echo "SKIP: Already registered with Satellite – skipping repo/subscription clean"
+else
+    echo "Cleaning existing repos and subscriptions..."
+    rm -rf /etc/yum.repos.d/*
+    yum clean all
+    subscription-manager clean
+fi
+
+# ─────────────────────────────────────────────
+# 3. Register with Satellite
+# ─────────────────────────────────────────────
+
+CA_CERT="/etc/pki/ca-trust/source/anchors/${SATELLITE_URL}.ca.crt"
+run_if_needed \
+    "test -f ${CA_CERT}" \
+    "curl -fk -L https://${SATELLITE_URL}/pub/katello-server-ca.crt -o ${CA_CERT}" \
+    "Download Katello CA cert"
+
+# Always re-run update-ca-trust if we just downloaded a new cert; safe to re-run anyway
 retry "update-ca-trust" "Update CA trust"
-retry "rpm -Uhv --force https://${SATELLITE_URL}/pub/katello-ca-consumer-latest.noarch.rpm" "Install Katello consumer RPM"
-retry "subscription-manager register --org=${SATELLITE_ORG} --activationkey=${SATELLITE_ACTIVATIONKEY}" "Register with Satellite"
 
-# Install packages
-retry "dnf install -y dnf-utils git nano" "Install base packages"
-retry "dnf install -y python3-pip python3-libsemanage git ansible-core python-requests ipa-client sssd oddjob-mkhomedir" "Install system packages"
+run_if_needed \
+    "rpm -q katello-ca-consumer" \
+    "rpm -Uhv --force https://${SATELLITE_URL}/pub/katello-ca-consumer-latest.noarch.rpm" \
+    "Install Katello consumer RPM"
 
-setenforce 0
+run_if_needed \
+    "subscription-manager status" \
+    "subscription-manager register --org=${SATELLITE_ORG} --activationkey=${SATELLITE_ACTIVATIONKEY}" \
+    "Register with Satellite"
+
+# ─────────────────────────────────────────────
+# 4. Install packages
+# ─────────────────────────────────────────────
+
+BASE_PKGS="dnf-utils git nano"
+SYSTEM_PKGS="python3-pip python3-libsemanage git ansible-core python-requests ipa-client sssd oddjob-mkhomedir"
+
+# rpm -q accepts a space-separated list and exits non-zero if any are missing
+run_if_needed \
+    "rpm -q ${BASE_PKGS}" \
+    "dnf install -y ${BASE_PKGS}" \
+    "Install base packages"
+
+run_if_needed \
+    "rpm -q ${SYSTEM_PKGS}" \
+    "dnf install -y ${SYSTEM_PKGS}" \
+    "Install system packages"
+
+echo "✓ Setup complete"
 git clone https://github.com/nmartins0611/zta-workshop-aap.git /tmp/zta-workshop-aap" "Clone ZTA workshop repo
 
 mkdir /tmp/group_vars
