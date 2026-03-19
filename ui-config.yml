@@ -20,4 +20,6 @@ tabs:
     url: https://vault-${guid}.${domain}/ui/vault/unseal
     external: true
   - name: Wazuh
-    url: https://wazuh-${guid}.${domain} 
+    url: https://wazuh-${guid}.${domain}
+  - name: Gitea
+    url: https://gitea-${guid}.${domain}/    
