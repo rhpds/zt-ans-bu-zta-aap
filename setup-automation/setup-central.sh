@@ -590,11 +590,16 @@ PLAYBOOK
 ansible-playbook -i /tmp/inventory /tmp/zta-setup.yml
 
 ###############################################################################
-# 12. IPA rewrite config (idempotent)
+# 12. Run integration playbook
+###############################################################################
+ansible-playbook -i /tmp/inventory /tmp/zta-workshop-aap/integrate.yml
+
+###############################################################################
+# 13. IPA rewrite config (idempotent) — must run after integrate.yml
 ###############################################################################
 
 IPA_REWRITE="/etc/httpd/conf.d/ipa-rewrite.conf"
-if grep -q "VERSION 7" "$IPA_REWRITE" 2>/dev/null; then
+if grep -q "RequestHeader set Host central.zta.lab" "$IPA_REWRITE" 2>/dev/null; then
     echo "SKIP: ipa-rewrite.conf already configured"
 else
     tee "$IPA_REWRITE" << 'IPA'
@@ -609,10 +614,5 @@ RewriteCond %{REQUEST_URI}  !^/(ca|kra|pki|acme)
 IPA
     systemctl reload httpd
 fi
-
-###############################################################################
-# 13. Run integration playbook
-###############################################################################
-ansible-playbook -i /tmp/inventory /tmp/zta-workshop-aap/integrate.yml
 
 echo "✓ central setup complete"
