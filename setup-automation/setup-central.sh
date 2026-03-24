@@ -636,7 +636,7 @@ ansible-playbook -i /tmp/inventory /tmp/zta-setup.yml
 # 12. Run integration playbook and IDM DNS
 ###############################################################################
 ansible-playbook -i /tmp/inventory /tmp/zta-workshop-aap/integrate.yml
-ansible-playbook -i /tmp/zta-workshop-aap/inventory/hosts.ini tmp/zta-workshop-aap/setup/configure-dns.yml
+#ansible-playbook -i /tmp/zta-workshop-aap/inventory/hosts.ini tmp/zta-workshop-aap/setup/configure-dns.yml
 ###############################################################################
 # 13. IPA rewrite config (idempotent) — must run after integrate.yml
 ###############################################################################
@@ -861,6 +861,6 @@ tee /tmp/zta-splunk.yml << 'EOF'
 
 EOF
 
-ansible-playbook -i /tmp/inventory /tmp/zta-splunk.yml
+#ansible-playbook -i /tmp/inventory /tmp/zta-splunk.yml
 
 echo "✓ central setup complete"
