@@ -5,6 +5,27 @@ set -euo pipefail
 # Helpers
 ###############################################################################
 
+# Create ~/.ansible.cfg with AH_TOKEN substituted
+tee ~/.ansible.cfg > /dev/null <<EOF
+[defaults]
+[galaxy]
+server_list = automation_hub, validated, galaxy
+[galaxy_server.automation_hub]
+url = https://console.redhat.com/api/automation-hub/content/published/
+auth_url = https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token
+token=$AH_TOKEN
+[galaxy_server.validated]
+url = https://console.redhat.com/api/automation-hub/content/validated/
+auth_url = https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token
+token=$AH_TOKEN
+[galaxy_server.galaxy]
+url=https://galaxy.ansible.com/
+#token=""
+[ssh_connection]
+ssh_args = -o ControlMaster=auto -o ControlPersist=60s
+pipelining = True
+EOF
+
 retry() {
     local max_attempts=3
     local delay=5
