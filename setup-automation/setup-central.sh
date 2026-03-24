@@ -2,7 +2,7 @@
 set -euo pipefail
 systemctl stop firewalld
 
-
+echo "Setup the AH Token for ansible"
 ###############################################################################
 # Setup AH
 ###############################################################################
@@ -33,6 +33,9 @@ url=https://galaxy.ansible.com/
 ssh_args = -o ControlMaster=auto -o ControlPersist=60s
 pipelining = True
 EOF
+
+
+echo "Setup the Satellite links"
 
 ###############################################################################
 # Helpers
@@ -478,6 +481,7 @@ EOF
 ###############################################################################
 # 10. Install Ansible collections
 ###############################################################################
+echo "Install Collections for Ansible Setup"
 
 retry "Install Ansible collections" \
     ansible-galaxy collection install -r /tmp/requirements.yml
