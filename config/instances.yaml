@@ -180,7 +180,7 @@ virtualmachines:
 
   - name: "node01"
     image: "rhel-9.5"
-    memory: "2G"
+    memory: "8G"
     cores: 2
     image_size: "30Gi"
     tags:
@@ -214,7 +214,7 @@ virtualmachines:
         
   - name: "central"
     image: "rhel-idm-opa-kc"
-    memory: "32G"
+    memory: "64G"
     cores: 4
     image_size: "50Gi"
     tags:
