@@ -73,7 +73,7 @@ run_if_needed() {
         echo "SKIP (already done): $desc"
     else
         retry "$desc" "$@"
-    fiNetwork loadbalance
+    fi
 }
 
 ensure_hosts_entry() {
