@@ -226,7 +226,7 @@ nmcli connection up enp2s0 || true
 # fi
 if [ -d /tmp/zta-workshop-aap ]; then
     echo "SKIP: /tmp/zta-workshop-aap already exists"
-else
+elseansible-playbook setup/configure-vault-ssh.yml
     retry "Clone ZTA workshop repo (idm_dev branch)" \
         git clone -b idm_dev https://github.com/nmartins0611/zta-workshop-aap.git /tmp/zta-workshop-aap
 fi
@@ -638,7 +638,9 @@ ansible-playbook -i /tmp/inventory /tmp/zta-setup.yml
 # 12. Run integration playbook and IDM DNS
 ###############################################################################
 ansible-playbook -i /tmp/inventory /tmp/zta-workshop-aap/integrate.yml
-ansible-playbook -i /tmp/zta-workshop-aap/inventory/hosts.ini tmp/zta-workshop-aap/setup/configure-dns.yml
+ansible-playbook -i /tmp/zta-workshop-aap/inventory/hosts.ini /tmp/zta-workshop-aap/setup/configure-dns.yml
+ansible-playbook -i /tmp/zta-workshop-aap/inventory/hosts.ini /tmp/zta-workshop-aap/setup/enroll-idm-clients.yml
+ansible-playbook -i /tmp/zta-workshop-aap/inventory/hosts.ini /tmp/zta-workshop-aap/setup/configure-idm-users.yml
 ###############################################################################
 # 13. IPA rewrite config (idempotent) — must run after integrate.yml
 ###############################################################################
