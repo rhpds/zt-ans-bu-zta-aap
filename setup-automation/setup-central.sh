@@ -2,6 +2,7 @@
 set -euo pipefail
 systemctl stop firewalld
 setenforce 0
+export ANSIBLE_HOST_KEY_CHECKING=False
 
 echo "Setup the AH Token for ansible"
 ###############################################################################
