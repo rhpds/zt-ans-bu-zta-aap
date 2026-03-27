@@ -17,9 +17,7 @@
       ansible_python_interpreter: /usr/libexec/platform-python
     loop:
       - control
-      - wazuh
       - vault
-      - node01
       - central
       - netbox
 
