@@ -1,3 +1,35 @@
+# ---
+# type: showroom
+# tabs:
+#   - name: Ansible Automation Platform
+#     url: https://control-${guid}.${domain}/
+#     external: false
+#   - name: "Terminal"
+#     url: /wetty_central
+#   - name: IDM
+#     url: https://idm-https-${guid}.${domain}/ipa/ui/
+#     external: false
+#   - name: Netbox
+#     url: https://netbox-${guid}.${domain}
+#     external: false
+#   - name: Keycloak
+#     url: https://keycloak-https-${guid}.${domain}
+#     external: true
+#   - name: OPA
+#     url: https://opa-http-${guid}.${domain}
+#   - name: HashiCorp Vault
+#     url: https://vault-${guid}.${domain}/ui/vault/unseal
+#     external: true
+#   - name: Wazuh
+#     url: https://wazuh-${guid}.${domain}
+#     external: false
+#   - name: Gitea
+#     url: https://gitea-${guid}.${domain}/    
+#     external: false
+#   - name: Splunk
+#     url: https://splunk-${guid}.${domain}
+#     external: true
+
 ---
 type: showroom
 tabs:
@@ -17,15 +49,19 @@ tabs:
     external: true
   - name: OPA
     url: https://opa-http-${guid}.${domain}
+    external: false
   - name: HashiCorp Vault
     url: https://vault-${guid}.${domain}/ui/vault/unseal
     external: true
-  - name: Wazuh
-    url: https://wazuh-${guid}.${domain}
+  - name: Wazuh Dashboard
+    url: https://wazuh-dashboard-${guid}.${domain}
     external: false
   - name: Gitea
-    url: https://gitea-${guid}.${domain}/    
+    url: https://gitea-${guid}.${domain}/
     external: false
   - name: Splunk
-    url: https://splunk-${guid}.${domain}
+    url: https://splunk-http-${guid}.${domain}
     external: true
+  - name: Global Telemetry Platform
+    url: https://app-http-${guid}.${domain}
+    external: false
