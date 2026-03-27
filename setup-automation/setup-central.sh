@@ -4,6 +4,8 @@ systemctl stop firewalld
 setenforce 0
 export ANSIBLE_HOST_KEY_CHECKING=False
 
+ rm -rf /tmp/zta-workshop-aap
+
 echo "Setup the AH Token for ansible"
 ###############################################################################
 # Setup AH
