@@ -25,6 +25,8 @@ ingress:
     port: 9000
   - protocol: TCP 
     port: 8543 # (Keycloak)
+  - protocol: TCP 
+    port: 8443 # (Keycloak)
 - ports:
   # ── General ──
   - protocol: TCP
