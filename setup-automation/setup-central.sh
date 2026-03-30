@@ -242,6 +242,7 @@ fi
 # 9. Create supporting directories and files
 ###############################################################################
 ansible-galaxy collection install community.general
+ansible-galaxy collection install netbox.netbox
 ###############################################################################
 # 13. IPA rewrite config (idempotent) — must run after integrate.yml
 ###############################################################################
