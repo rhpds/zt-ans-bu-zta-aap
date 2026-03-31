@@ -3,11 +3,11 @@ set -euo pipefail
 systemctl stop firewalld
 setenforce 0
 export ANSIBLE_HOST_KEY_CHECKING=False
-wget -O /tmp/vault-ssh-helper.zip https://releases.hashicorp.com/vault-ssh-helper/0.2.1/vault-ssh-helper_0.2.1_linux_amd64.zip
-mkdir -p /tmp/wazuh
-curl -o /tmp/wazuh/GPG-KEY-WAZUH https://packages.wazuh.com/key/GPG-KEY-WAZUH
-curl -o /tmp/wazuh/wazuh-agent-4.9.2-1.x86_64.rpm https://packages.wazuh.com/4.9/yum/wazuh-agent-4.9.2-1.x86_64.rpm
-curl -Lo /tmp/spire-1.12.0-linux-amd64-musl.tar.gz https://github.com/spiffe/spire/releases/download/v1.12.0/spire-1.12.0-linux-amd64-musl.tar.gz
+# wget -O /tmp/vault-ssh-helper.zip https://releases.hashicorp.com/vault-ssh-helper/0.2.1/vault-ssh-helper_0.2.1_linux_amd64.zip
+# mkdir -p /tmp/wazuh
+# curl -o /tmp/wazuh/GPG-KEY-WAZUH https://packages.wazuh.com/key/GPG-KEY-WAZUH
+# curl -o /tmp/wazuh/wazuh-agent-4.9.2-1.x86_64.rpm https://packages.wazuh.com/4.9/yum/wazuh-agent-4.9.2-1.x86_64.rpm
+# curl -Lo /tmp/spire-1.12.0-linux-amd64-musl.tar.gz https://github.com/spiffe/spire/releases/download/v1.12.0/spire-1.12.0-linux-amd64-musl.tar.gz
 
 
  rm -rf /tmp/zta-workshop-aap
@@ -253,6 +253,7 @@ fi
 ###############################################################################
 ansible-galaxy collection install community.general
 ansible-galaxy collection install netbox.netbox
+ansible-galaxy collection install ansible.controller
 ###############################################################################
 # 13. IPA rewrite config (idempotent) — must run after integrate.yml
 ###############################################################################
