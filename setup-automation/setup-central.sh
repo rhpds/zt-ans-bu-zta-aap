@@ -3,6 +3,7 @@ set -euo pipefail
 systemctl stop firewalld
 setenforce 0
 export ANSIBLE_HOST_KEY_CHECKING=False
+export NETBOX_TOKEN=0123456789abcdef0123456789abcdef01234567
 # wget -O /tmp/vault-ssh-helper.zip https://releases.hashicorp.com/vault-ssh-helper/0.2.1/vault-ssh-helper_0.2.1_linux_amd64.zip
 # mkdir -p /tmp/wazuh
 # curl -o /tmp/wazuh/GPG-KEY-WAZUH https://packages.wazuh.com/key/GPG-KEY-WAZUH
