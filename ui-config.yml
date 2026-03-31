@@ -53,8 +53,8 @@ tabs:
   - name: HashiCorp Vault
     url: https://vault-${guid}.${domain}/ui/vault/unseal
     external: true
-  - name: Wazuh Dashboard
-    url: https://wazuh-dashboard-${guid}.${domain}
+  - name: Wazuh
+    url: https://wazuh-${guid}.${domain}
     external: false
   - name: Gitea
     url: https://gitea-${guid}.${domain}/
