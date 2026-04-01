@@ -49,8 +49,8 @@
 
   - name: sat | Install CA certificate from satellite server
     ansible.builtin.get_url:
-      url: "https://{{ set_repositories_satellite_hostname }}/pub/katello-server-ca.crt"
-      dest: /etc/pki/ca-trust/source/anchors/{{ set_repositories_satellite_hostname }}.ca.crt
+      url: "https://{{ satellite_url }}/pub/katello-server-ca.crt"
+      dest: /etc/pki/ca-trust/source/anchors/{{ satellite_url }}.ca.crt
       mode: u=rw,go=r
       validate_certs: false
     retries: 10
