@@ -30,7 +30,7 @@ run_if_needed() {
     local desc="$1"
     shift
     local check=()
-    while [[ "$1" != "--" ]]; do
+    while [[ $# -gt 0 && "${1}" != "--" ]]; do
         check+=("$1"); shift
     done
     shift
@@ -221,17 +221,17 @@ fi
 ###############################################################################
 
 run_if_needed "Install community.general collection" \
-    ansible-galaxy collection list | grep -q "community.general" \
+    bash -c 'ansible-galaxy collection list | grep -q "community.general"' \
     -- \
     ansible-galaxy collection install community.general
 
 run_if_needed "Install netbox.netbox collection" \
-    ansible-galaxy collection list | grep -q "netbox.netbox" \
+    bash -c 'ansible-galaxy collection list | grep -q "netbox.netbox"' \
     -- \
     ansible-galaxy collection install netbox.netbox
 
 run_if_needed "Install ansible.controller collection" \
-    ansible-galaxy collection list | grep -q "ansible.controller" \
+    bash -c 'ansible-galaxy collection list | grep -q "ansible.controller"' \
     -- \
     ansible-galaxy collection install ansible.controller
 
