@@ -48,7 +48,7 @@
 
   - name: sat | Install Satellite CA certificate package
     yum:
-      name: "https://{{ satellite_url }}/pub/katello-ca-consumer-latest.noarch.rpm""
+      name: "https://{{ satellite_url }}/pub/katello-ca-consumer-latest.noarch.rpm"
       state: present
       disablerepo: "*"
       disable_gpg_check: true
