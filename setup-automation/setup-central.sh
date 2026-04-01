@@ -11,7 +11,7 @@ export NETBOX_TOKEN=0123456789abcdef0123456789abcdef01234567
 # curl -Lo /tmp/spire-1.12.0-linux-amd64-musl.tar.gz https://github.com/spiffe/spire/releases/download/v1.12.0/spire-1.12.0-linux-amd64-musl.tar.gz
 
 
- rm -rf /tmp/zta-workshop-aap
+rm -rf /tmp/zta-workshop-aap
 
 echo "Setup the AH Token for ansible"
 ###############################################################################
@@ -48,63 +48,63 @@ EOF
 
 # echo "Setup the Satellite links"
 
-# ###############################################################################
-# # Helpers
-# ###############################################################################
+###############################################################################
+# Helpers
+###############################################################################
 
-# retry() {
-#     local max_attempts=3
-#     local delay=5
-#     local desc="$1"
-#     shift
-#     for ((i = 1; i <= max_attempts; i++)); do
-#         echo "Attempt $i/$max_attempts: $desc"
-#         if "$@"; then
-#             return 0
-#         fi
-#         if [ $i -lt $max_attempts ]; then
-#             echo "  Failed. Retrying in ${delay}s..."
-#             sleep $delay
-#         fi
-#     done
-#     echo "FATAL: Failed after $max_attempts attempts: $desc"
-#     exit 1
-# }
+retry() {
+    local max_attempts=3
+    local delay=5
+    local desc="$1"
+    shift
+    for ((i = 1; i <= max_attempts; i++)); do
+        echo "Attempt $i/$max_attempts: $desc"
+        if "$@"; then
+            return 0
+        fi
+        if [ $i -lt $max_attempts ]; then
+            echo "  Failed. Retrying in ${delay}s..."
+            sleep $delay
+        fi
+    done
+    echo "FATAL: Failed after $max_attempts attempts: $desc"
+    exit 1
+}
 
-# run_if_needed() {
-#     local desc="$1"
-#     shift
-#     local check=()
-#     while [[ "$1" != "--" ]]; do
-#         check+=("$1"); shift
-#     done
-#     shift
-#     if "${check[@]}" &>/dev/null; then
-#         echo "SKIP (already done): $desc"
-#     else
-#         retry "$desc" "$@"
-#     fi
-# }
+run_if_needed() {
+    local desc="$1"
+    shift
+    local check=()
+    while [[ "$1" != "--" ]]; do
+        check+=("$1"); shift
+    done
+    shift
+    if "${check[@]}" &>/dev/null; then
+        echo "SKIP (already done): $desc"
+    else
+        retry "$desc" "$@"
+    fi
+}
 
-# ensure_hosts_entry() {
-#     local ip="$1"
-#     local names="$2"
-#     if grep -q "^${ip} " /etc/hosts 2>/dev/null; then
-#         echo "SKIP: /etc/hosts already has entry for ${ip}"
-#     else
-#         echo "${ip} ${names}" >> /etc/hosts
-#     fi
-# }
+ensure_hosts_entry() {
+    local ip="$1"
+    local names="$2"
+    if grep -q "^${ip} " /etc/hosts 2>/dev/null; then
+        echo "SKIP: /etc/hosts already has entry for ${ip}"
+    else
+        echo "${ip} ${names}" >> /etc/hosts
+    fi
+}
 
-# ensure_nmcli_connection() {
-#     local con_name="$1"
-#     shift
-#     if nmcli connection show "$con_name" &>/dev/null; then
-#         echo "SKIP: nmcli connection '${con_name}' already exists"
-#     else
-#         nmcli connection add "$@"
-#     fi
-# }
+ensure_nmcli_connection() {
+    local con_name="$1"
+    shift
+    if nmcli connection show "$con_name" &>/dev/null; then
+        echo "SKIP: nmcli connection '${con_name}' already exists"
+    else
+        nmcli connection add "$@"
+    fi
+}
 
 # ###############################################################################
 # # 1. Validate required variables
@@ -249,9 +249,6 @@ ensure_hosts_entry "192.168.1.13" "wazuh.zta.lab wazuh"
 ###############################################################################
 # 7. Network configuration (idempotent)
 ###############################################################################
-###############################################################################
-# 7. Network configuration (idempotent)
-###############################################################################
 
 ensure_nmcli_connection "enp2s0" \
     type ethernet con-name enp2s0 ifname enp2s0 \
@@ -265,19 +262,10 @@ nmcli connection up enp2s0 || true
 # 8. Clone workshop repo (idempotent)
 ###############################################################################
 
-# if [ -d /tmp/zta-workshop-aap ]; then
-#     echo "SKIP: /tmp/zta-workshop-aap already exists"
-# else
-#     retry "Clone ZTA workshop repo" \
-#         git clone https://github.com/nmartins0611/zta-workshop-aap.git /tmp/zta-workshop-aap
-        
-# fi
-
 if [ -d /tmp/zta-workshop-aap ]; then
     echo "SKIP: /tmp/zta-workshop-aap already exists"
 else
-    # Corrected the line below
-    retry "Clone ZTA workshop repo (idm_dev branch)" \
+    retry "Clone ZTA workshop repo (zta-container branch)" \
         git clone -b zta-container https://github.com/nmartins0611/zta-workshop-aap.git /tmp/zta-workshop-aap
 fi
 
@@ -313,7 +301,7 @@ systemctl stop container-keycloak
 systemctl kill container-keycloak
 podman rm --force keycloak
 podman create --name keycloak --restart=always -p 8180:8080 -p 8543:8443 -e KEYCLOAK_ADMIN=admin -e KEYCLOAK_ADMIN_PASSWORD=ansible123! -e KC_HOSTNAME=keycloak-https-${GUID}.${DOMAIN} -e KC_HTTPS_CERTIFICATE_FILE=/opt/certs/server.crt -e KC_HTTPS_CERTIFICATE_KEY_FILE=/opt/certs/server.key -e KC_HTTP_ENABLED=true -v /opt/keycloak/certs:/opt/certs:Z registry.redhat.io/rhbk/keycloak-rhel9:24 start --hostname=keycloak-https-${GUID}.${DOMAIN} --https-port=8443 --http-enabled=true --proxy-headers forwarded
-sed -i "s/^PIDFile/d/" /etc/systemd/system/container-keycloak.service
+sed -i "/^PIDFile/d" /etc/systemd/system/container-keycloak.service
 systemctl daemon-reload
 systemctl start container-keycloak
 
