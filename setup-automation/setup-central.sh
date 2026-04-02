@@ -317,6 +317,7 @@ ensure_nmcli_connection "enp2s0" \
 
 nmcli connection up enp2s0 || true
 
+cp /tmp/zta-workshop-aap/ansible.cfg /etc/ansible/
 ###############################################################################
 # 15. Run Ansible playbooks
 ###############################################################################
