@@ -321,30 +321,11 @@ cp /tmp/zta-workshop-aap/ansible.cfg /etc/ansible/
 ###############################################################################
 # 15. Run Ansible playbooks
 ###############################################################################
-ansible-playbook -i /tmp/zta-workshop-aap/inventory/hosts.ini /tmp/zta-workshop-aap/setup/configure-dns.yml
-
-#ansible-playbook -i /tmp/zta-workshop-aap/inventory/hosts.ini /tmp/zta-workshop-aap/setup/site.yml --skip-tags spire,arista,netbox-deploy,splunk-deploy,wazuh-server,idm-users,aap-policy,aap-ldap,aap-netbox,aap-eda,aap-bootstrap
-
-
-# PLAYBOOK_DIR="/tmp/zta-workshop-aap/setup"
-# INVENTORY="/tmp/zta-workshop-aap/inventory/hosts.ini"
-# FAILED=()
-
-# for playbook in deploy-dashboard.yml configure-dns.yml configure-vault.yml configure-vault-ssh.yml enroll-idm-clients.yml; do
-#     echo "Running ${playbook}..."
-#     if ansible-playbook -i "$INVENTORY" "${PLAYBOOK_DIR}/${playbook}"; then
-#         echo "✓ ${playbook} completed"
-#     else
-#         echo "✗ ${playbook} FAILED"
-#         FAILED+=("$playbook")
-#     fi
-# done
-
-# if [ ${#FAILED[@]} -gt 0 ]; then
-#     echo ""
-#     echo "ERROR: The following playbooks failed: ${FAILED[*]}"
-#     exit 1
-# fi
+PLAYBOOK_DIR="/tmp/zta-workshop-aap"
+cd "${PLAYBOOK_DIR}" || { echo "ERROR: Cannot cd to ${PLAYBOOK_DIR}"; exit 1; }
+ansible-playbook -i inventory/hosts.ini setup/configure-dns.yml
+#ansible-playbook -i inventory/hosts.ini setup/deploy-central.yml
+#ansible-playbook -i inventory/hosts.ini setup/deploy-db-app.yml
 
 # echo ""
 # echo "✓ central setup complete"
