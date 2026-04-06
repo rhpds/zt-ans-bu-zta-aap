@@ -324,6 +324,7 @@ cp /tmp/zta-workshop-aap/ansible.cfg /etc/ansible/
 PLAYBOOK_DIR="/tmp/zta-workshop-aap"
 cd "${PLAYBOOK_DIR}" || { echo "ERROR: Cannot cd to ${PLAYBOOK_DIR}"; exit 1; }
 ansible-playbook -i inventory/hosts.ini setup/configure-dns.yml
+ansible-playbook -i inventory/hosts.ini setup/enroll-idm-clients.yml
 ansible-playbook -i inventory/hosts.ini setup/deploy-central.yml --skip-tags keycloak
 ansible-playbook -i inventory/hosts.ini setup/deploy-db-app.yml
 ansible-playbook -i inventory/hosts.ini setup/configure-vault.yml
