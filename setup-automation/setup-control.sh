@@ -147,6 +147,31 @@ else
 fi
 
 ###############################################################################
+# 5. Setup Ansible configuration with AH Token
+###############################################################################
+
+tee ~/.ansible.cfg > /dev/null <<EOF
+[defaults]
+[galaxy]
+server_list = automation_hub, validated, galaxy
+[galaxy_server.automation_hub]
+url = https://console.redhat.com/api/automation-hub/content/published/
+auth_url = https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token
+token=$AH_TOKEN
+[galaxy_server.validated]
+url = https://console.redhat.com/api/automation-hub/content/validated/
+auth_url = https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token
+token=$AH_TOKEN
+[galaxy_server.galaxy]
+url=https://galaxy.ansible.com/
+#token=""
+[ssh_connection]
+ssh_args = -o ControlMaster=auto -o ControlPersist=60s
+pipelining = True
+EOF
+
+
+###############################################################################
 # 7. Install packages
 ###############################################################################
 
@@ -180,28 +205,19 @@ fi
 # 11. Install Ansible collections
 ###############################################################################
 
-# run_if_needed "Install community.general collection" \
-#     bash -c 'ansible-galaxy collection list | grep -q "community.general"' \
-#     -- \
-#     ansible-galaxy collection install community.general
-
-# run_if_needed "Install netbox.netbox collection" \
-#     bash -c 'ansible-galaxy collection list | grep -q "netbox.netbox"' \
-#     -- \
-#     ansible-galaxy collection install netbox.netbox
-
-# run_if_needed "Install ansible.controller collection" \
-#     bash -c 'ansible-galaxy collection list | grep -q "ansible.controller"' \
-#     -- \
-#     ansible-galaxy collection install ansible.controller
+run_if_needed "Install community.general collection" \
+    bash -c 'ansible-galaxy collection list | grep -q "ansible.controller"' \
+    -- \
+    ansible-galaxy install -r /tmp/zta-workshop-aap/collections/requirements.yml
 
 cp /tmp/zta-workshop-aap/ansible.cfg /etc/ansible/
 ###############################################################################
 # 15. Run Ansible playbooks
 ###############################################################################
-# PLAYBOOK_DIR="/tmp/zta-workshop-aap"
-# cd "${PLAYBOOK_DIR}" || { echo "ERROR: Cannot cd to ${PLAYBOOK_DIR}"; exit 1; }
-# ansible-playbook -i inventory/hosts.ini setup/configure-dns.yml
+PLAYBOOK_DIR="/tmp/zta-workshop-aap"
+cd "${PLAYBOOK_DIR}" || { echo "ERROR: Cannot cd to ${PLAYBOOK_DIR}"; exit 1; }
+ansible-playbook -i inventory/hosts.ini setup/configure-aap-inventory.yml
+ansible-playbook -i inventory/hosts.ini setup/configure-aap-credentials.yml
 # ansible-playbook -i inventory/hosts.ini setup/deploy-central.yml
 # ansible-playbook -i inventory/hosts.ini setup/deploy-db-app.yml
 # ansible-playbook -i inventory/hosts.ini setup/configure-vault.yml
