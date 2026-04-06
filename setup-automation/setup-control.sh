@@ -166,16 +166,47 @@ run_if_needed "Install Python3 libraries" \
     dnf install -y python3-libsemanage
 
 ###############################################################################
-# 8. Clone workshop repo (optional, idempotent)
+# 10. Clone workshop repo (idempotent)
 ###############################################################################
 
-# Uncomment if workshop repo is needed
-# if [ -d /tmp/zta-aap-workshop ]; then
-#     echo "SKIP: /tmp/zta-aap-workshop already exists"
-# else
-#     retry "Clone ZTA AAP workshop repo" \
-#         git clone https://github.com/nmartins0611/zta-aap-workshop.git /tmp/zta-aap-workshop
-# fi
+if [ -d /tmp/zta-workshop-aap ]; then
+    echo "SKIP: /tmp/zta-workshop-aap already exists"
+else
+    retry "Clone ZTA workshop repo (zta-container branch)" \
+        git clone -b zta-container https://github.com/nmartins0611/zta-workshop-aap.git /tmp/zta-workshop-aap
+fi
+
+###############################################################################
+# 11. Install Ansible collections
+###############################################################################
+
+# run_if_needed "Install community.general collection" \
+#     bash -c 'ansible-galaxy collection list | grep -q "community.general"' \
+#     -- \
+#     ansible-galaxy collection install community.general
+
+# run_if_needed "Install netbox.netbox collection" \
+#     bash -c 'ansible-galaxy collection list | grep -q "netbox.netbox"' \
+#     -- \
+#     ansible-galaxy collection install netbox.netbox
+
+# run_if_needed "Install ansible.controller collection" \
+#     bash -c 'ansible-galaxy collection list | grep -q "ansible.controller"' \
+#     -- \
+#     ansible-galaxy collection install ansible.controller
+
+cp /tmp/zta-workshop-aap/ansible.cfg /etc/ansible/
+###############################################################################
+# 15. Run Ansible playbooks
+###############################################################################
+# PLAYBOOK_DIR="/tmp/zta-workshop-aap"
+# cd "${PLAYBOOK_DIR}" || { echo "ERROR: Cannot cd to ${PLAYBOOK_DIR}"; exit 1; }
+# ansible-playbook -i inventory/hosts.ini setup/configure-dns.yml
+# ansible-playbook -i inventory/hosts.ini setup/deploy-central.yml
+# ansible-playbook -i inventory/hosts.ini setup/deploy-db-app.yml
+# ansible-playbook -i inventory/hosts.ini setup/configure-vault.yml
+# ansible-playbook -i inventory/hosts.ini setup/configure-vault-ssh.yml
+
 
 echo ""
 echo "✓ control setup complete"
