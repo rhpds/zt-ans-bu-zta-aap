@@ -321,6 +321,7 @@ cp /tmp/zta-workshop-aap/ansible.cfg /etc/ansible/
 ###############################################################################
 # 15. Run Ansible playbooks
 ###############################################################################
+ansible-playbook -i /tmp/zta-workshop-aap/inventory/hosts.ini /tmp/zta-workshop-aap/setup/configure-dns.yml
 
 #ansible-playbook -i /tmp/zta-workshop-aap/inventory/hosts.ini /tmp/zta-workshop-aap/setup/site.yml --skip-tags spire,arista,netbox-deploy,splunk-deploy,wazuh-server,idm-users,aap-policy,aap-ldap,aap-netbox,aap-eda,aap-bootstrap
 
