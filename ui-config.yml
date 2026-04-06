@@ -44,18 +44,18 @@ tabs:
   - name: Netbox
     url: https://netbox-${guid}.${domain}
     external: false
-  - name: Keycloak
-    url: https://keycloak-https-${guid}.${domain}
-    external: true
+  # - name: Keycloak
+  #   url: https://keycloak-https-${guid}.${domain}
+  #   external: true
   - name: OPA
     url: https://opa-http-${guid}.${domain}
     external: false
   - name: HashiCorp Vault
     url: https://vault-${guid}.${domain}/ui/vault/unseal
     external: true
-  - name: Wazuh
-    url: https://wazuh-${guid}.${domain}
-    external: false
+  # - name: Wazuh
+  #   url: https://wazuh-${guid}.${domain}
+  #   external: false
   - name: Gitea
     url: https://gitea-${guid}.${domain}/
     external: false
