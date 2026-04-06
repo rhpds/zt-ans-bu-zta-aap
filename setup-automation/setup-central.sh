@@ -53,7 +53,8 @@ run_if_needed() {
 ensure_hosts_entry() {
     local ip="$1"
     local names="$2"
-    if grep -q "^${ip} " /etc/hosts 2>/dev/null; then
+    if grep -q "^${ip} " /etc/hosts 2>/dev/null; thenexport ANSIBLE_HOST_KEY_CHECKING=False
+export NETBOX_TOKEN=0123456789abcdef0123456789abcdef01234567
         echo "SKIP: /etc/hosts already has entry for ${ip}"
     else
         echo "${ip} ${names}" >> /etc/hosts
@@ -192,7 +193,7 @@ ensure_hosts_entry "192.168.1.13" "wazuh.zta.lab wazuh"
 # run_if_needed "Install pynetbox" \
 #     python3 -c "import pynetbox" \
 #     -- \
-#     pip3 install pynetbox
+     pip3 install pynetbox --user
 
 ###############################################################################
 # 9. Download IPA RPMs for containers
