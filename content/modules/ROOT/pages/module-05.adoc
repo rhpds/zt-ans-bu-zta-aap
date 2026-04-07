@@ -1,0 +1,148 @@
+= Section 5 — Automated incident response (Splunk → EDA → Vault)
+:toc: left
+:toclevels: 3
+:icons: font
+:idprefix:
+:idseparator: -
+
+Companion to `section5/README.md`. Brute-force simulation → Splunk detection → webhook → EDA → AAP job revokes app DB credentials.
+
+include::../../docs/lab/common-environment.adoc[]
+
+[IMPORTANT]
+.Assume breach → contain blast radius
+====
+Detection will always be imperfect; Zero Trust asks **what happens next**. Here, a high-volume SSH failure pattern triggers **automated revocation** of the application’s **database credentials**—not merely an email. That **limits what an attacker who gained foothold on the app host** can reach next (lateral movement to sensitive data). The app may go **intentionally unhealthy**; that is **trading availability for confidentiality** in the critical window after suspected compromise.
+====
+
+== Prerequisites
+
+* Section 2 complete (app deployed with Vault DB creds).
+* Splunk receiving `linux_secure` from app/db (`setup/integrate-splunk.yml` as deployed).
+* EDA listening (Controller or `ansible-rulebook`).
+
+[TIP]
+.Visible telemetry
+====
+Splunk indexes **evidence** from hosts (via forwarders). ZTA monitoring is not optional decoration—it feeds **continuous security analytics** that can drive **orchestrated response** through EDA without waiting for humans to notice a dashboard.
+====
+
+== Exercise 5.1 — AAP job templates
+
+[cols="2,3",options="header"]
+|===
+| Template | Playbook
+| Emergency: Revoke App Credentials | `section5/playbooks/revoke-app-credentials.yml`
+| Simulate Brute Force | `section5/playbooks/simulate-bruteforce.yml`
+| Restore App Credentials | `section5/playbooks/restore-app-credentials.yml`
+|===
+
+Use **ZTA Lab Inventory** and **ZTA Machine Credential**.
+
+[TIP]
+.Revoke vs “block IP”
+====
+This lab **revokes secrets** in Vault (and stops reliance on DB access) instead of only blocking a source IP—useful when attackers pivot internally or use many IPs. It illustrates **credential-centric containment**: shrink **privilege** first; network blocks can layer on top.
+====
+
+== Exercise 5.2 — Splunk saved search / alert
+
+In Splunk, confirm failed SSH events exist:
+
+[source]
+----
+index=main sourcetype=linux_secure "Failed password"
+----
+
+Create alert (example search from README):
+
+[source]
+----
+index=main sourcetype=linux_secure "Failed password"
+| stats count by src_ip, host
+| where count >= 5
+----
+
+Real-time window (e.g. 60s), webhook action to EDA: `http://control.zta.lab:5000/endpoint` (adjust to your EDA deployment).
+
+REST API variant documented in `section5/README.md`.
+
+[TIP]
+.SIEM as sensor, EDA as actuator
+====
+Splunk answers “**do we see attack-like behaviour?**” The webhook is a **standardised signal** into **Event-Driven Ansible**, which turns that boolean into **approved automation** (run job template). This is the ZTA pattern of **policy-driven orchestration**: response playbooks are still **subject to AAP controls**, not anonymous shell scripts.
+====
+
+== Exercise 5.3 — EDA rulebook
+
+* Controller: import `section5/eda/splunk-credential-revoke.yml`, create activation, decision environment, ensure listener port matches Splunk webhook.
+* CLI example:
+
+[source,bash]
+----
+ansible-rulebook --rulebook section5/eda/splunk-credential-revoke.yml \
+  -i inventory/hosts.ini --verbose
+----
+
+[TIP]
+.Closed loop
+====
+EDA closes the loop between **observation** (logs/alerts) and **enforcement** (AAP). For Zero Trust maturity, measure **time-to-contain** and ensure playbooks are **idempotent** and **safe**—false positives will happen, which is why Section 5.8 tuning matters.
+====
+
+== Exercise 5.4 — Baseline health
+
+[source,bash]
+----
+curl -s http://app.zta.lab:8081/health
+# On DB: confirm Vault dynamic role exists
+----
+
+[TIP]
+.Know “normal” before chaos
+====
+Baseline health and DB role presence give you **before** pictures. Incident response without baselines turns into guesswork—ZTA operations emphasise **continuous visibility** so automated actions are explainable to auditors (“we knew the app had active creds X; after revoke, creds were gone”).
+====
+
+== Exercise 5.5 — Simulate attack
+
+Launch **Simulate Brute Force** (or `ansible-playbook section5/playbooks/simulate-bruteforce.yml`).
+
+[TIP]
+.Safe simulation
+====
+The playbook generates **failed auth** events **without** granting access—useful training data for Splunk thresholds and for proving the **detection → response** chain without handing students real exploit tools.
+====
+
+== Exercise 5.6 — Observe chain
+
+* Splunk: alert fired, events visible.
+* EDA: event received, rule matched, `run_job_template` to revoke.
+* AAP: **Emergency: Revoke App Credentials** ran without manual launch.
+* App/CURL and PostgreSQL: creds gone / app isolated.
+
+[TIP]
+.Human-in-the-loop recovery
+====
+Automation contained the incident; **humans** still decide when to restore—matching many real SOCs (investigate, then re-issue least privilege). The **restore** template models **controlled re-onboarding** of credentials rather than silently rolling back security.
+====
+
+== Exercise 5.7 — Restore
+
+Run **Restore App Credentials**; confirm `health` OK.
+
+[TIP]
+.Re-verify after recovery
+====
+Post-restore checks prove **new** credentials and **clean** state—not the old lease. This mirrors **re-authorisation** after an incident: you do not assume the previous session is still trustworthy.
+====
+
+== Validation checklist
+
+* [ ] Pre-attack healthy
+* [ ] Splunk alert + webhook + EDA + AAP revoke
+* [ ] Post-attack app isolated; restore succeeds
+
+== Extended exercises
+
+include::includes/exercise-5-8-splunk-tuning.adoc[]
