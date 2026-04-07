@@ -19,7 +19,7 @@ Detection will always be imperfect; Zero Trust asks **what happens next**. Here,
 
 * Section 2 complete (app deployed with Vault DB creds).
 * Splunk receiving `linux_secure` from app/db (`setup/integrate-splunk.yml` as deployed).
-* EDA listening (Controller or `ansible-rulebook`).
+* **Event-Driven Ansible controller** (AAP 2.6) receiving webhooks, or standalone `ansible-rulebook` for demos.
 
 [TIP]
 .Visible telemetry
@@ -70,13 +70,13 @@ REST API variant documented in `section5/README.md`.
 [TIP]
 .SIEM as sensor, EDA as actuator
 ====
-Splunk answers “**do we see attack-like behaviour?**” The webhook is a **standardised signal** into **Event-Driven Ansible**, which turns that boolean into **approved automation** (run job template). This is the ZTA pattern of **policy-driven orchestration**: response playbooks are still **subject to AAP controls**, not anonymous shell scripts.
+Splunk answers “**do we see attack-like behaviour?**” The webhook is a **standardised signal** into **Event-Driven Ansible**, which turns that boolean into **approved automation** (run job template). This is the ZTA pattern of **policy-driven orchestration**: response playbooks are still **subject to automation controller** policies and RBAC, not anonymous shell scripts.
 ====
 
 == Exercise 5.3 — EDA rulebook
 
-* Controller: import `section5/eda/splunk-credential-revoke.yml`, create activation, decision environment, ensure listener port matches Splunk webhook.
-* CLI example:
+* **Event-Driven Ansible controller (AAP 2.6):** Add a **Project** that sources this repository (or upload the rulebook), create a **Decision Environment** for `ansible-rulebook`, then a **Rulebook Activation** that uses `section5/eda/splunk-credential-revoke.yml`. Set the activation listener **host, port, and path** to match the Splunk webhook (e.g. `http://control.zta.lab:5000/endpoint`). See https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.6/html/using_automation_decisions/[Using automation decisions].
+* CLI example (no controller):
 
 [source,bash]
 ----
@@ -118,7 +118,7 @@ The playbook generates **failed auth** events **without** granting access—usef
 
 * Splunk: alert fired, events visible.
 * EDA: event received, rule matched, `run_job_template` to revoke.
-* AAP: **Emergency: Revoke App Credentials** ran without manual launch.
+* Automation controller: **Emergency: Revoke App Credentials** ran without manual launch.
 * App/CURL and PostgreSQL: creds gone / app isolated.
 
 [TIP]
@@ -140,7 +140,7 @@ Post-restore checks prove **new** credentials and **clean** state—not the old 
 == Validation checklist
 
 * [ ] Pre-attack healthy
-* [ ] Splunk alert + webhook + EDA + AAP revoke
+* [ ] Splunk alert + webhook + EDA + automation controller revoke job
 * [ ] Post-attack app isolated; restore succeeds
 
 == Extended exercises
