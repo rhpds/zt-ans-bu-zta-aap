@@ -182,7 +182,7 @@ run_if_needed "Install paramiko" \
 # 8. Download IPA RPMs for containers
 ###############################################################################
 
-if [ ! -d /tmp/ipa-rpms ]; then
+if [ ! -d /tmp/ipa-rpms ]; thenhrg2t
     mkdir -p /tmp/ipa-rpms
     dnf download --resolve --destdir /tmp/ipa-rpms ipa-client
 fi
@@ -240,7 +240,7 @@ fi
 
 ###############################################################################
 # 11. Reconfigure Keycloak container
-###############################################################################
+###############################################################################hrg2t
 
 echo "Reconfiguring Keycloak container..."
 podman stop keycloak 2>/dev/null || true
@@ -297,4 +297,4 @@ ansible-playbook -i inventory/hosts.ini setup/deploy-db-app.yml
 ansible-playbook -i inventory/hosts.ini setup/configure-vault.yml
 ansible-playbook -i inventory/hosts.ini setup/configure-vault-ssh.yml
 ansible-playbook -i inventory/hosts.ini setup/configure-netbox.yml
-ansible-playbook -i inventory/hosts.ini setup/integrate-splunk.yml
+ansible-playbook -i inventory/hosts.ini setup/integrate-splunk.yml --skip-tags arista_syslog,wazuh_splunk
