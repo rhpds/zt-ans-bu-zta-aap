@@ -1,8 +1,5 @@
 #!/bin/bash
 set -euo pipefail
-# echo "kernel.sysrq = 0" > /etc/sysctl.d/99-no-sysrq.conf
-# podman kill ceos1 ceos2 ceos3 2>/dev/null; true
-# podman rm -f ceos1 ceos2 ceos3 2>/dev/null; true
 
 echo "Starting Central node setup..."
 
@@ -53,8 +50,7 @@ run_if_needed() {
 ensure_hosts_entry() {
     local ip="$1"
     local names="$2"
-    if grep -q "^${ip} " /etc/hosts 2>/dev/null; thenexport ANSIBLE_HOST_KEY_CHECKING=False
-export NETBOX_TOKEN=0123456789abcdef0123456789abcdef01234567
+    if grep -q "^${ip} " /etc/hosts 2>/dev/null; then
         echo "SKIP: /etc/hosts already has entry for ${ip}"
     else
         echo "${ip} ${names}" >> /etc/hosts
@@ -71,8 +67,7 @@ ensure_nmcli_connection() {
     fi
 }
 
-###############################################################################export ANSIBLE_HOST_KEY_CHECKING=False
-export NETBOX_TOKEN=0123456789abcdef0123456789abcdef01234567
+###############################################################################
 # 1. Validate required environment variables
 ###############################################################################
 
@@ -96,8 +91,7 @@ else
     echo "SELinux set to Permissive"
 fi
 
-if systemctl is-active --quiet firewalld; thenexport ANSIBLE_HOST_KEY_CHECKING=False
-export NETBOX_TOKEN=0123456789abcdef0123456789abcdef01234567
+if systemctl is-active --quiet firewalld; then
     systemctl stop firewalld
     echo "Firewalld stopped"
 else
@@ -110,17 +104,11 @@ fi
 
 export ANSIBLE_HOST_KEY_CHECKING=False
 export NETBOX_TOKEN=0123456789abcdef0123456789abcdef01234567
-export ANSIBLE_CONFIG=/path/to/zta-workshop-aap/ansible.cfg
+export ANSIBLE_CONFIG=/tmp/zta-workshop-aap/ansible.cfg
 mkdir -p /root/.ansible/cp
 
 ###############################################################################
-# 4. Clean temp directory
-###############################################################################
-
-rm -rf /tmp/zta-workshop-aap
-
-###############################################################################
-# 5. Setup Ansible configuration with AH Token
+# 4. Setup Ansible configuration with AH Token
 ###############################################################################
 
 tee ~/.ansible.cfg > /dev/null <<EOF
@@ -137,14 +125,13 @@ auth_url = https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-co
 token=$AH_TOKEN
 [galaxy_server.galaxy]
 url=https://galaxy.ansible.com/
-#token=""
 [ssh_connection]
 ssh_args = -o ControlMaster=auto -o ControlPersist=60s
 pipelining = True
 EOF
 
 ###############################################################################
-# 6. Register with subscription manager (idempotent)
+# 5. Register with subscription manager (idempotent)
 ###############################################################################
 
 if subscription-manager identity &>/dev/null; then
@@ -168,7 +155,7 @@ else
 fi
 
 ###############################################################################
-# 7. /etc/hosts (idempotent)
+# 6. /etc/hosts (idempotent)
 ###############################################################################
 
 ensure_hosts_entry "192.168.1.10" "control.zta.lab control aap.zta.lab"
@@ -178,19 +165,8 @@ ensure_hosts_entry "192.168.1.15" "netbox.zta.lab netbox"
 ensure_hosts_entry "192.168.1.13" "wazuh.zta.lab wazuh"
 
 ###############################################################################
-# 8. Install packages
+# 7. Install packages
 ###############################################################################
-
-# run_if_needed "Install base packages" \
-#     rpm -q dnf-utils \
-#     -- \
-#     dnf install -y dnf-utils git nano
-
-# run_if_needed "Install system packages" \
-#     rpm -q python3-libsemanage \
-#     -- \
-#     dnf install -y python3-libsemanage ansible-core python3-requests \
-#                    ipa-client sssd oddjob-mkhomedir python3-pip
 
 run_if_needed "Install pynetbox" \
     python3 -c "import pynetbox" \
@@ -203,7 +179,7 @@ run_if_needed "Install paramiko" \
      pip3 install paramiko --user
 
 ###############################################################################
-# 9. Download IPA RPMs for containers
+# 8. Download IPA RPMs for containers
 ###############################################################################
 
 if [ ! -d /tmp/ipa-rpms ]; then
@@ -225,7 +201,7 @@ for c in app db; do
 done
 
 ###############################################################################
-# 10. Clone workshop repo (idempotent)
+# 9. Clone workshop repo (idempotent)
 ###############################################################################
 
 if [ -d /tmp/zta-workshop-aap ]; then
@@ -236,26 +212,7 @@ else
 fi
 
 ###############################################################################
-# 11. Install Ansible collections
-###############################################################################
-
-# run_if_needed "Install community.general collection" \
-#     bash -c 'ansible-galaxy collection list | grep -q "community.general"' \
-#     -- \
-#     ansible-galaxy collection install community.general
-
-# run_if_needed "Install netbox.netbox collection" \
-#     bash -c 'ansible-galaxy collection list | grep -q "netbox.netbox"' \
-#     -- \
-#     ansible-galaxy collection install netbox.netbox
-
-# run_if_needed "Install ansible.controller collection" \
-#     bash -c 'ansible-galaxy collection list | grep -q "ansible.controller"' \
-#     -- \
-#     ansible-galaxy collection install ansible.controller
-
-###############################################################################
-# 12. IPA rewrite config (idempotent)
+# 10. IPA rewrite config (idempotent)
 ###############################################################################
 
 IPA_REWRITE="/etc/httpd/conf.d/ipa-rewrite.conf"
@@ -279,11 +236,10 @@ IPA
     else
         echo "NOTE: httpd not running, config will apply when started"
     fi
-fiexport ANSIBLE_HOST_KEY_CHECKING=False
-export NETBOX_TOKEN=0123456789abcdef0123456789abcdef01234567
+fi
 
 ###############################################################################
-# 13. Reconfigure Keycloak container
+# 11. Reconfigure Keycloak container
 ###############################################################################
 
 echo "Reconfiguring Keycloak container..."
@@ -314,7 +270,7 @@ fi
 systemctl start container-keycloak
 
 ###############################################################################
-# 14. Network configuration (idempotent)
+# 12. Network configuration (idempotent)
 ###############################################################################
 
 echo "Configuring network interface..."
@@ -327,9 +283,11 @@ ensure_nmcli_connection "enp2s0" \
 nmcli connection up enp2s0 || true
 
 cp /tmp/zta-workshop-aap/ansible.cfg /etc/ansible/
+
 ###############################################################################
-# 15. Run Ansible playbooks
+# 13. Run Ansible playbooks
 ###############################################################################
+
 PLAYBOOK_DIR="/tmp/zta-workshop-aap"
 cd "${PLAYBOOK_DIR}" || { echo "ERROR: Cannot cd to ${PLAYBOOK_DIR}"; exit 1; }
 ansible-playbook -i inventory/hosts.ini setup/configure-dns.yml
@@ -340,5 +298,3 @@ ansible-playbook -i inventory/hosts.ini setup/configure-vault.yml
 ansible-playbook -i inventory/hosts.ini setup/configure-vault-ssh.yml
 ansible-playbook -i inventory/hosts.ini setup/configure-netbox.yml
 ansible-playbook -i inventory/hosts.ini setup/integrate-splunk.yml
-# echo ""
-# echo "✓ central setup complete"
