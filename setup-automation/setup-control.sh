@@ -204,11 +204,27 @@ fi
 ###############################################################################
 # 11. Install Ansible collections
 ###############################################################################
+tee /tmp/requirements.yml > /dev/null <<EOF
+---
+collections:
+  - name: cisco.ios
+  - name: arista.eos
+  - name: ansible.netcommon
+  - name: community.postgresql
+  - name: community.general
+  - name: redhat.rhel_idm
+  - name: netbox.netbox
+  - name: containers.podman
+  - name: ansible.controller
+  - name: ansible.posix
+
+EOF
+
 
 run_if_needed "Install community.general collection" \
     bash -c 'ansible-galaxy collection list | grep -q "ansible.controller"' \
     -- \
-    ansible-galaxy install -r /tmp/zta-workshop-aap/collections/requirements.yml
+    ansible-galaxy install -r /tmp/requirements.yml
 
 cp /tmp/zta-workshop-aap/ansible.cfg /etc/ansible/
 ###############################################################################
