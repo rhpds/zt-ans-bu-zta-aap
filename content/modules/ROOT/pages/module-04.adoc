@@ -9,6 +9,12 @@ Companion to `section4/README.md`. **Outer ring:** AAP Policy as Code (gateway).
 
 include::../../docs/lab/common-environment.adoc[]
 
+[NOTE]
+.Policy as Code (outer ring)
+====
+The **outer ring** requires the same controller ↔ OPA integration as Section 3: run `setup/configure-aap-policy.yml` or the manual steps in `docs/deployment-guide.md` (Layer 7 — *Manual Policy as Code*).
+====
+
 == Architecture summary
 
 * **Outer ring:** user must be in `network-admins` to launch VLAN/Network templates (see `aap.gateway` in deployment).
