@@ -1,44 +1,232 @@
-=== Exercise 1.8 — Certificate trust chain debugging
+= Section 1 — Verify ZTA components and AAP integration
+:toc: left
+:toclevels: 3
+:icons: font
+:experimental:
+:idprefix:
+:idseparator: -
+
+This lab mirrors `section1/README.md` in AsciiDoc. Use it for student handouts or PDF/HTML builds. UI steps use the **automation controller** in **Ansible Automation Platform 2.6** (see shared platform note below).
+
+include::../../docs/lab/common-environment.adoc[]
+
+== Overview
+
+Connect Ansible Automation Platform to the Zero Trust stack. Workshop credentials are pre-created with `setup/configure-aap-credentials.yml`; you verify Vault lookups and related objects, then configure inventory, project, templates, and run checks against IdM, Vault, OPA, NetBox, and Gitea.
+
+[IMPORTANT]
+.Why this section exists
+====
+Until AAP is wired to the same **identity, policy, secrets, and inventory truth** the rest of the architecture uses, automation would be a *shadow admin path*—easy to bypass Zero Trust intent. Here you make AAP a **first-class citizen** of the ZTA fabric: it authenticates like other services, reads policy from OPA, pulls secrets from Vault, and builds inventory from NetBox so *what you run jobs against* matches *what the organisation says exists*.
+====
+
+.Workshop delivery (2-hour track)
+[cols="3,1,1",options="header"]
+|===
+| Exercise | Track | Est. time
+
+| 1.1 — Verify AAP credentials (Vault lookups) | Core | 5 min
+| 1.2 — Inventory and project | Core | 5 min
+| 1.3 — Job templates | Core | 3 min
+| 1.4 — Verify ZTA services | Core | 2 min
+| 1.5 — Vault dynamic credentials | Core | 3 min
+| 1.6 — Vault SSH signed certificates | Core | 3 min
+| 1.7 — OPA policy decisions | Core | 2 min
+| 1.8 — Certificate trust debugging | Extended | 25 min
+|===
+
+For a short workshop, complete **1.1–1.7** (~20–25 min). Skip **1.8** unless you have extra time.
+
+== Exercise 1.1 — Verify AAP credentials (pre-configured, Vault-sourced)
+
+=== Goal
+
+Workshop credentials are created with `setup/configure-aap-credentials.yml`. You **confirm** Vault KV data and controller objects match the lab—no manual credential creation in the UI for this exercise.
 
 [TIP]
-.Zero Trust for machines, not only people
+.Zero Trust: secrets on the platform
 ====
-Users authenticate to IdM; **services** must also prove they belong to the organisation. A self-signed HTTPS cert says “trust me because I say so”—there is **no anchor** tying the service to your enterprise PKI. ZTA expects **verifiable service identity** (here, via the IdM CA) so automation and humans do not train themselves to click through certificate warnings—a behaviour attackers exploit.
+Machine and Arista passwords are **not** stored in AAP: the controller holds **Vault paths** and resolves them at job time. Only the bootstrap Vault lookup (and NetBox token) behave like classic “stored” secrets in the platform database—tighten that in production (AppRole, TLS, policy).
 ====
 
-==== Scenario
+=== Step 1 — Confirm Vault paths
 
-A test HTTPS endpoint on central uses a **self-signed** certificate instead of the IdM CA. Clients that trust only IdM will fail TLS verification.
-
-*Instructor:* `ansible-playbook section1/playbooks/break-cert-trust.yml`
-
-==== Steps
-
-. Observe failure:
-+
 [source,bash]
 ----
-curl https://central.zta.lab:9443/
-----
-+
-Expect certificate verification error.
+export VAULT_ADDR=http://vault.zta.lab:8200
+vault login -method=userpass username=admin password=ansible123!
 
-. Inspect presented cert:
-+
+vault kv get secret/machine/rhel
+vault kv get secret/network/arista
+vault kv get secret/db/admin
+----
+
+=== Step 2 — Confirm credentials in the controller
+
+Open **Credentials** and verify these names exist (from `setup/configure-aap-credentials.yml`). Edit each and confirm:
+
+* `ZTA Vault Credential` — Vault URL and v2; bootstrap auth present.
+* `ZTA Machine Credential` — user `rhel`, sudo; **Password** and **Become** use lookups to `secret/data/machine/rhel` (`password`, `become_password`).
+* `ZTA Arista Credential` — lookups on `secret/data/network/arista`.
+* `ZTA NetBox Credential` — URL and token match NetBox.
+* `ZTA Vault SSH Credential` — present (AppRole / signed SSH).
+
+Do not change lookup paths unless an instructor is troubleshooting.
+
+[TIP]
+.Gitea credential
+====
+`configure-aap-credentials.yml` does **not** create **ZTA Gitea Credential**. Confirm or add it when you set up the **ZTA Workshop** project (Exercise 1.2) if Git requires it.
+====
+
+Functional checks: **Exercise 1.4** (Verify ZTA Services) and **1.5–1.6** prove lookups from AAP.
+
+=== Step 3 — NetBox type missing?
+
+If the **NetBox** credential type or **ZTA NetBox Credential** is absent, follow the **Manual: NetBox credential type** steps in `section1/README.md`, then re-run automation or recreate the NetBox credential per Exercise 1.2.
+
+=== Step 4 — Vault SSH CA
+
 [source,bash]
 ----
-echo | openssl s_client -connect central.zta.lab:9443 2>/dev/null | \
-  openssl x509 -text -noout | grep -E "Issuer|Subject|Not "
+vault read ssh/config/ca
+vault read ssh/roles/ssh-signer
 ----
 
-. Compare with IdM UI cert (port 443).
+.Credential summary
+[cols="2,2,3",options="header"]
+|===
+| Credential | Type | Source
+| ZTA Vault Credential | Vault lookup | Bootstrap (stored in AAP)
+| ZTA Machine | Machine | KV `secret/data/machine/rhel` at job time
+| ZTA Arista | Network | KV `secret/data/network/arista` at job time
+| ZTA NetBox | NetBox | Token in AAP
+| ZTA Vault SSH | Vault Signed SSH | AppRole + `ssh-signer`
+|===
 
-. On central, request IdM-signed cert with `ipa-getcert` (see `section1/README.md` for full `ipa-getcert request` example and paths).
+[TIP]
+.Vault SSH CA vs static keys
+====
+**Signed SSH certificates** are the Zero Trust answer to shared static keys. Exercise 1.6 exercises this path end-to-end.
+====
 
-. Point the test service at IdM-signed cert/key; restart service; verify `curl` succeeds and issuer is IdM CA.
+== Exercise 1.2 — Inventory and project
 
-==== Validation
+[TIP]
+.Source of truth and GitOps
+====
+**NetBox** is the *infrastructure source of truth* in this workshop: if a host is decommissioned there, it should disappear from automation inventory on sync—reducing “ghost” targets attackers or operators could hit. **Gitea** holds *intent* (playbooks); together they separate **what exists** (CMDB) from **what we want to do** (code), both subject to policy in later sections.
+====
 
-* [ ] Initial `curl` fails (untrusted issuer)
-* [ ] `openssl` shows self-signed issuer on :9443
-* [ ] After fix, `curl` succeeds and issuer is IdM CA
+=== Project (Gitea)
+
+**Projects** → **Add**:
+
+* Name: `ZTA Workshop`
+* Git URL: `http://gitea.zta.lab:3000/zta-workshop/zta-app.git`
+* Credential: `ZTA Gitea Credential`
+* Save; wait for successful sync.
+
+=== Inventory (NetBox)
+
+. **Inventories** → create `ZTA Lab Inventory`.
+. Open the inventory → **Sources** → **Add**:
+
+|===
+| Name | NetBox CMDB
+| Source | Sourced from a project
+| Project | ZTA Workshop
+| Inventory file | `inventory/netbox_inventory.yml`
+| Credential | ZTA NetBox Credential
+|===
+
+. Enable **Overwrite** and **Update on launch**; sync and verify hosts (central, control, vault, netbox, app, db, ceos1–3, etc.).
+
+[TIP]
+.Update on launch
+====
+Refreshing inventory **before each job** reduces stale targeting: policy and playbooks see **current** CMDB state, which is how Zero Trust ties **continuous authorisation** to **current asset posture** (at least at inventory granularity).
+====
+
+== Exercise 1.3 — Job templates
+
+[TIP]
+.Why these four templates
+====
+You are building an **evidence trail** that each pillar works before you trust it for real change. In ZTA terms this is **verify, then enforce**: IdM/Vault/OPA/network paths must be healthy or later sections will fail in ambiguous ways. Treat these jobs as **control-plane health checks** for the PEP (AAP).
+====
+
+Create templates using **ZTA Lab Inventory** and **ZTA Machine Credential**:
+
+[cols="2,3",options="header"]
+|===
+| Name | Playbook
+| Verify ZTA Services | `section1/playbooks/verify-zta-services.yml`
+| Test Vault Integration | `section1/playbooks/test-vault-integration.yml`
+| Test Vault SSH Certificates | `section1/playbooks/test-vault-ssh.yml`
+| Test OPA Policy | `section1/playbooks/test-opa-policy.yml`
+|===
+
+== Exercise 1.4 — Verify ZTA services
+
+Run **Verify ZTA Services**. Expect healthy IdM, Vault, OPA, NetBox, DNS, PostgreSQL, and Arista facts.
+
+[TIP]
+.Never trust, always verify
+====
+**Service checks** are the operational face of “never trust, always verify”: you do not assume IdM or OPA is up because yesterday it was. For the workshop, this mirrors **continuous diagnostics** on which policy decisions and secret issuance depend.
+====
+
+== Exercise 1.5 — Test Vault integration
+
+Run **Test Vault Integration**. Observe short-lived PostgreSQL users (unique name per run, TTL, revoke at end).
+
+[TIP]
+.Short-lived database identities
+====
+Dynamic DB users with a **TTL** limit how long a leaked credential is useful—core **assume breach** hygiene. Vault **revokes** the lease so the database role disappears without a human running `DROP USER`. That is how **least privilege** becomes **time-bound privilege**.
+====
+
+== Exercise 1.6 — Test Vault SSH certificates
+
+Run **Test Vault SSH Certificates**. Observe CA-signed cert, TTL, principals, successful SSH to app/db.
+
+Optional manual sign (from README):
+
+[source,bash]
+----
+export VAULT_ADDR=http://vault.zta.lab:8200
+vault login -method=userpass username=admin password=ansible123!
+ssh-keygen -t rsa -b 2048 -f /tmp/ephemeral -N '' -q
+vault write -field=signed_key ssh/sign/ssh-signer \
+  public_key=@/tmp/ephemeral.pub valid_principals=rhel > /tmp/ephemeral-cert.pub
+ssh-keygen -L -f /tmp/ephemeral-cert.pub
+----
+
+[TIP]
+.Cryptographic proof of permission to log in
+====
+The certificate encodes **who may act as which principal** and **for how long**. Hosts need only trust the CA once; they do not need network reachability to Vault at login time. That separation is useful in segmented networks and matches the ZTA idea that **access is explicitly granted and expires**.
+====
+
+== Exercise 1.7 — Test OPA policy
+
+Run **Test OPA Policy**. Expect allow/deny scenarios for patching, VLAN, and DB access per group membership.
+
+[TIP]
+.Deny by default (PDP)
+====
+OPA returns **allow** only when Rego rules fire; everything else is **implicit deny**. **IdM groups** supply *role-like* attributes the PDP can use, but unlike a static RBAC matrix in one app, the same policy can be **versioned, tested, and shared** across AAP and other PEPs. You are seeing **central policy** backing **distributed enforcement**.
+====
+
+== Validation checklist (core)
+
+* [ ] Vault KV paths present; controller shows ZTA Vault / Machine / Arista / NetBox / Vault SSH credentials with correct lookups
+* [ ] Vault SSH credential present (from `configure-aap-credentials.yml`)
+* [ ] NetBox inventory sync shows all lab hosts
+* [ ] Gitea project synced
+* [ ] Four verification templates run successfully
+
+== Extended exercises
+
+include::includes/extended-exercise-1-8.adoc[]
