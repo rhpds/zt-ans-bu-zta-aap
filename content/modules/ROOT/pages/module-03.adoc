@@ -9,6 +9,12 @@ Companion to `section3/README.md`. Demonstrates **AAP → OPA gateway** blocking
 
 include::../../docs/lab/common-environment.adoc[]
 
+[IMPORTANT]
+.Prerequisite — Policy as Code on the controller
+====
+The automation controller must integrate with OPA for **Policy as Code** (decision path `v1/data/aap/gateway/decision`). Run `setup/configure-aap-policy.yml`, or follow the **manual UI/API** steps in `docs/deployment-guide.md` under **Layer 7 — Policy** (*Manual Policy as Code*). OPA policies including `aap.gateway` must be loaded first (`setup/configure-opa-base.yml`).
+====
+
 == Overview
 
 Template name contains **Patch** → `aap.gateway` requires `patch-admins`. Wrong users never start the playbook.
