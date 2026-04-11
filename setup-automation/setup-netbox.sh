@@ -135,7 +135,11 @@ services:
       SUPERUSER_PASSWORD: "netbox"
       SUPERUSER_NAME: "admin"
     healthcheck:
-      start_period: 180s
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/login/ || exit 1"]
+      start_period: 300s
+      interval: 15s
+      timeout: 5s
+      retries: 3
 EOF
 
 ###############################################################################
@@ -150,8 +154,27 @@ else
     retry "Pull NetBox images" \
         docker compose pull
 
-    retry "Start NetBox containers" \
-        docker compose up -d netbox netbox-worker
+    docker compose up -d netbox
+
+    echo "Waiting for NetBox container to become healthy..."
+    health="starting"
+    for i in {1..60}; do
+        health=$(docker inspect --format='{{.State.Health.Status}}' netbox-docker-netbox-1 2>/dev/null || echo "missing")
+        if [ "$health" = "healthy" ]; then
+            echo "NetBox container is healthy"
+            break
+        fi
+        echo "  Health status: $health (attempt $i/60)"
+        sleep 5
+    done
+
+    if [ "$health" != "healthy" ]; then
+        echo "ERROR: NetBox did not become healthy in time"
+        docker compose logs netbox --tail=50
+        exit 1
+    fi
+
+    docker compose up -d netbox-worker
 fi
 
 ###############################################################################
