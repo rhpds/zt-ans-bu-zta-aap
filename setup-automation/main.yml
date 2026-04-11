@@ -122,14 +122,14 @@
 
     - name: Check if bootstrap script exists
       ansible.builtin.stat:
-        path: "./setup-{{ ansible_host }}.sh"
+        path: "{{ playbook_dir }}/setup-{{ ansible_host }}.sh"
       delegate_to: localhost
       become: false
       register: r_script_test
 
     - name: Copy bootstrap script
       ansible.builtin.copy:
-        src: "./setup-{{ ansible_host }}.sh"
+        src: "{{ playbook_dir }}/setup-{{ ansible_host }}.sh"
         dest: "/tmp/setup-scripts/setup-{{ ansible_host }}.sh"
         mode: '0755'
       when: r_script_test.stat.exists
@@ -162,7 +162,7 @@
     - name: Save bootstrap output
       ansible.builtin.copy:
         content: "{{ r_result.stdout | default(r_result.stderr) | default(r_result) }}"
-        dest: "/tmp/{{ ansible_host }}-bootstrap.out"
+        dest: "/tmp/{{ inventory_hostname }}-bootstrap.out"
       delegate_to: localhost
       become: false
       when: r_result is defined

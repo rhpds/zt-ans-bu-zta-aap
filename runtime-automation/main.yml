@@ -33,7 +33,7 @@
 
   - name: Check if /module_dir/module_stage-host.sh exists
     ansible.builtin.stat:
-      path: "./{{ module_dir }}/{{ module_stage }}-{{ config_host }}.sh"
+      path: "{{ playbook_dir }}/{{ module_dir }}/{{ module_stage }}-{{ ansible_host }}.sh"
     delegate_to: localhost
     register: r_script_test
 
