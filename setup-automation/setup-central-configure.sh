@@ -14,6 +14,8 @@ export ANSIBLE_CONFIG=/tmp/zta-workshop-aap/ansible.cfg
 PLAYBOOK_DIR="/tmp/zta-workshop-aap"
 cd "${PLAYBOOK_DIR}" || { echo "ERROR: Cannot cd to ${PLAYBOOK_DIR}"; exit 1; }
 
+ansible-playbook -i inventory/hosts.ini setup/configure-firewall.yml          # ensure firewalld running + all ports open
+ansible-playbook -i inventory/hosts.ini setup/deploy-rhel-containers.yml      # write persistent data-plane NM keyfiles (once only)
 ansible-playbook -i inventory/hosts.ini setup/configure-vault.yml
 ansible-playbook -i inventory/hosts.ini setup/configure-vault-ssh.yml
 ansible-playbook -i inventory/hosts.ini setup/configure-netbox.yml
