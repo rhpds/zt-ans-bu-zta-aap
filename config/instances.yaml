@@ -68,7 +68,7 @@ containers:
 virtualmachines:
   - name: control
     image: aap-2.6-2-ceh-20251103
-    memory: 32G
+    memory: 64G
     cores: 8
     image_size: 80Gi
     tags:
