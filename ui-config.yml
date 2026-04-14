@@ -33,6 +33,9 @@
 ---
 type: showroom
 tabs:
+  - name: Lab Topology
+    url: https://dashboard-http-${guid}.${domain}
+    external: false
   - name: Ansible Automation Platform
     url: https://control-${guid}.${domain}/
     external: false
@@ -56,15 +59,12 @@ tabs:
   # - name: Wazuh
   #   url: https://wazuh-${guid}.${domain}
   #   external: false
-  - name: Gitea
-    url: https://gitea-${guid}.${domain}/
-    external: false
+  # - name: Gitea
+  #   url: https://gitea-${guid}.${domain}/
+  #   external: false
   - name: Splunk
     url: https://splunk-http-${guid}.${domain}
     external: true
   - name: Global Telemetry Platform
     url: https://app-http-${guid}.${domain}
-    external: false
-  - name: Lab Topology
-    url: https://dashboard-http-${guid}.${domain}
-    external: false
+    external: true
