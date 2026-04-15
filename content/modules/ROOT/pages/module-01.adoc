@@ -13,13 +13,6 @@ In NIST SP 800-207 terms, **Ansible Automation Platform (AAP)** is the *Policy E
 **Why that matters:** Zero Trust assumes breach and removes implicit trust. You will repeatedly see *verify then act*, *deny by default*, *least privilege*, and *auditability*—not as buzzwords but as concrete gates in the automation path.
 ====
 
-[NOTE]
-.Platform version (Red Hat Ansible Automation Platform 2.6)
-====
-These labs target **Red Hat Ansible Automation Platform 2.6**: the **automation controller** (job and workflow templates, credentials, inventories, projects) and the **Event-Driven Ansible controller** (rulebook activations, decision environments, projects, credentials). See the https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.6/[AAP 2.6 documentation] and https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.6/html/using_automation_decisions/[Using automation decisions] for EDA.
-
-Menu groupings vary by **role and organization** (for example **Access** vs **Automation Execution**). Steps that mention *Resources → Credentials* mean **Credentials** in the automation controller; use **Projects**, **Inventories**, **Templates**, and **Workflows** in the same UI. EDA steps use the **Event-Driven Ansible controller** (rulebook activations, decision environments).
-====
 
 [#lab-common-environment]
 == Lab environment reference
