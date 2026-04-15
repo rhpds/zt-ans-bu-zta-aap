@@ -21,5 +21,6 @@ ansible-playbook -i inventory/hosts.ini setup/configure-vault-ssh.yml
 ansible-playbook -i inventory/hosts.ini setup/configure-netbox.yml
 ansible-playbook -i inventory/hosts.ini setup/integrate-splunk.yml --skip-tags arista_syslog,wazuh_splunk
 ansible-playbook -i inventory/hosts.ini setup/configure-aap-podman-gateway-prereqs.yml
+ansible-playbook -i inventory/hosts.ini setup/deploy-spire.yml 
 echo ""
 echo "central configure phase complete"
