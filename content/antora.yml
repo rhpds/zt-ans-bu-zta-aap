@@ -1,18 +1,18 @@
 name: modules
-title: Ansible Automation Platform, HashiCorp Terraform and Vault!
+title: Zero Trust and Ansible Automation platform
 version: master
 nav:
   - modules/ROOT/nav.adoc
 
 asciidoc:
   attributes:
-    lab_name: "Ansible Automation Platform, HashiCorp Terraform and Vault!"
+    lab_name: "Zero Trust and Ansible Automation Platform"
     release-version: master
     page-pagination: true
     my_var: "foo"
     guid: my-guid
-    ssh_user: devops
-    ssh_password: devops
+    ssh_user: rhel
+    ssh_password: ansible123!
     ssh_command: ssh someone@example.com
     page-links:
     - url: https://redhat.com
