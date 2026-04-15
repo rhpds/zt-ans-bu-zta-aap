@@ -40,8 +40,9 @@ AAP 2.6 sends the full job context to OPA, including `created_by.teams` (the use
 The gateway policy uses **resource metadata** (here, template name substrings) as a coarse **risk classifier**. Production policies often add **inventory tags, execution environments, survey variables, or SAML claims**—the idea is the same: **encode risk in attributes** the PDP can evaluate consistently, not in tribal knowledge about “who is allowed to click what.”
 ====
 
-== Exercise 3.1 — Job template
-
+== Exercise 3.1
+[%collapsible]
+====           
 
 We can use a template to deploy new policies to OPA. Login to our platform as the ztauser and navigate to 'Templates', create a new 'Template' with the following details:
 
@@ -76,8 +77,7 @@ Next, we need to configure the Organization to use policy enforcement. Navigate 
 
 
 
-<PICTURE>
-
+image::
 
 
 Login as appdev and navigate to the Templates.
@@ -103,6 +103,7 @@ This job cannot be executed due to a policy violation or error. See the followin
 '{"Infrastructure", "Security"}, has: '
 '{"Applications"})']}}
 ----
+====
 
 [TIP]
 .Stronger than hiding buttons
@@ -110,7 +111,9 @@ This job cannot be executed due to a policy violation or error. See the followin
 Traditional RBAC might hide templates or rely on operator discipline. **Policy as Code** makes denial **explicit and uniform**—the PDP answer can be the same for UI, API, and integrated CI—reducing **policy drift** between teams and making exceptions visible in Git-tracked Rego rather than tribal knowledge.
 ====
 
-
+== Exercise 3.2
+[%collapsible]
+====         
 You can now log in the platform as a user (ztauser) that is in the Infrastructure team or add appdev to the infrastructure team. 
 
 Trigger the 'Apply Security Patch' template now and it should succeed. 
@@ -131,7 +134,7 @@ ok: [app] => {
 ]
 }
 ----
-
+====
 
 [TIP]
 .Identity lifecycle, not ticket forever
@@ -159,5 +162,6 @@ sudo sshd -T | grep -E 'permitrootlogin|maxauthtries|permitemptypasswords'
 ====
 Spot-checking `sshd -T` and audit rules proves **the control landed**. Zero Trust operations depend on **observable state** (what the host actually enforces), not only on “the job was green.”
 ====
+
 
 You can now proceed to the next section.
