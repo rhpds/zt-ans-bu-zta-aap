@@ -5,10 +5,6 @@
 :idprefix:
 :idseparator: -
 
-Optional track parallel to Section 5 using **Wazuh** + EDA. Companion to `section7/README.md`.
-
-include::../../docs/lab/common-environment.adoc[]
-
 == When to use
 
 Compare agent-side detection (Wazuh) vs central log analytics (Splunk). Requires Wazuh manager/agents + `setup/configure-wazuh-eda.yml` as deployed.
