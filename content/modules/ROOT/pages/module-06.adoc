@@ -5,9 +5,7 @@
 :idprefix:
 :idseparator: -
 
-Companion to `section6/README.md`. defence-in-depth SSH controls and recovery when automation is locked out.
 
-include::../../docs/lab/common-environment.adoc[]
 
 [IMPORTANT]
 .Why this section exists
