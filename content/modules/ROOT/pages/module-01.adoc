@@ -46,7 +46,7 @@ These hostnames assume workshop DNS (`*.zta.lab`) is configured. Replace with in
 
 | NetBox
 | `http://netbox.zta.lab:8880`
-| API token and `admin` / `ansible123!`
+| API token and `admin` / `netbox`
 
 | Gitea
 | `http://gitea.zta.lab:3000`
