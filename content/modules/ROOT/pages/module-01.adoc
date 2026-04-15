@@ -375,6 +375,7 @@ These are the IdM groups the workshop uses in **Group** triggers (`dc=zta,dc=lab
 | `team-devops` | `cn=team-devops,cn=groups,cn=accounts,dc=zta,dc=lab`
 | `team-security` | `cn=team-security,cn=groups,cn=accounts,dc=zta,dc=lab`
 | `team-applications` | `cn=team-applications,cn=groups,cn=accounts,dc=zta,dc=lab`
+| `team-readonly` | `cn=team-readonly,cn=groups,cn=accounts,dc=zta,dc=lab`
 |===
 
 [NOTE]
@@ -446,6 +447,8 @@ Below is an example for the Infrastructure team, create this and continue with t
 | `team-devops` | DevOps
 | `team-security` | Security
 | `team-applications` | Applications
+| `team-readonly` | Readonly
+
 |===
 
 . **Infrastructure (Group)** — :
