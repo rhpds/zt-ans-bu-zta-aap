@@ -13,57 +13,6 @@ In NIST SP 800-207 terms, this section moves from *verifying* the ZTA stack (Sec
 **Why that matters:** An attacker who compromises one layer — network, identity, or secrets — still faces enforcement at every other layer. The deployment pipeline is not a single trust decision; it is a **chain of independent verifications** that must all pass.
 ====
 
-[#lab-common-environment]
-== Lab environment reference
-
-These hostnames assume workshop DNS (`*.zta.lab`) is configured. Replace with instructor-provided values if different.
-
-.Access information
-[cols="2,2,3",options="header"]
-|===
-| System | URL / address | Credentials
-
-| Automation controller (AAP 2.6)
-| `https://control.zta.lab`
-| `admin` / `ansible123!`
-
-| Event-Driven Ansible controller (AAP 2.6)
-| Same platform as automation controller (EDA UI / route per deployment)
-| `admin` / `ansible123!`
-
-| IdM (FreeIPA)
-| `https://central.zta.lab`
-| `admin` / `ansible123!`
-
-| OPA
-| `http://central.zta.lab:8181`
-| No auth (lab)
-
-| Vault
-| `http://vault.zta.lab:8200`
-| `admin` / `ansible123!` (or userpass as documented)
-
-| NetBox
-| `http://netbox.zta.lab:8880`
-| API token as documented / instructor
-
-| Gitea
-| `http://gitea.zta.lab:3000`
-| As provided by instructor
-
-| Splunk
-| `http://splunk.zta.lab:8000` or `http://central.zta.lab:8000`
-| As configured during setup
-
-| Wazuh Dashboard
-| `http://wazuh.zta.lab:5601`
-| As provided by instructor
-
-| Application (Global Telemetry Platform)
-| `http://app.zta.lab:8081`
-| No auth (dashboard)
-|===
-
 == Overview
 
 Deploy the **Global Telemetry Platform** using Vault dynamic database credentials. Experience OPA **deny** for the wrong user, then **allow** for `app-deployers`. Observe micro-segmentation (Arista) and credential TTL.
@@ -75,8 +24,9 @@ Deploying an app is where **identity (who)**, **policy (may they)**, **secrets (
 ====
 
 
-== Exercise 2.1 — Workflow
-
+== Exercise 2.1
+[%collapsible]
+====         
 [TIP]
 .Separation of concerns in templates
 ====
@@ -106,11 +56,12 @@ Add the next two templates the same way, 'Configure DB Access list', and 'Deploy
 
 Your workflow should look like this:
 
-<PICTURE>
+image::
 
 Lastly, click 'Save'. Click on the workflow name, and on the template details select 'Team Access'. Click on 'Assign Teams', select all the teams and click next. Now we need to allocate roles for the teams, you can select 'WorkflowJobTemplate Approve' and 'WorkflowJobTemplate Execute' and click next followed by review and finish.
 
 The roles will now be allocated, and you can log out of the platform. 
+====
 
 [NOTE]
 .AAP workflows as auditable trust chains
@@ -125,14 +76,15 @@ The roles will now be allocated, and you can log out of the platform.
 ====
 
 == Exercise 2.2
-
+[%collapsible]
+====  
 . Log into AAP as `neteng`. Notice you have no permissions. You are just a member of the Organization.
 
 . Navigate to the IDM tab and login with the admin details.
 . Search for neteng on active users. Select the account and click on User Groups.We can see they are part of the 'ipausers' group so they have access but not much else. 
 . click on 'Add' so we can add them to the Infrastructure group. Search for Infrastructure and click on the '>' to allocate the group to the account and click 'Add'.
 
-<PICTURE>
+image::
 
 
 
@@ -147,8 +99,7 @@ When you changed `neteng`'s group membership in IdM, AAP picked up that change o
 Navigate to Templates and execute the 'Deploy Application Pipeline' workflow by clicking on the rocket.
 
 We can see the job failed! Click on the first template to review.
-
-<PICTURE>
+image::
 
 We can see OPA has stepped in and **DENIED** the job. The workflow stops and no futher actions can take place.
 
@@ -279,7 +230,7 @@ curl -s http://app.zta.lab:8081/health | python3 -m json.tool
 ----
 
 The application is no longer healthy. The time limited credentials have now expired. Refresh the 'Global Telemetry Platform' web page and you will see a database connection error. 
-
+==== 
 
 [TIP]
 .The 503 is Zero Trust working as intended
