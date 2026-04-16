@@ -1,6 +1,4 @@
 = Section 4 -- SPIFFE-verified network VLAN management
-:toc: left
-:toclevels: 3
 :icons: font
 :idprefix:
 :idseparator: -
