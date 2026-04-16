@@ -94,35 +94,7 @@ Here's how they map to the tools you'll use:
 
 Here's how all of that fits together:
 
-[mermaid]
-....
-flowchart TB
-    PDP("<b>Policy Decision Point — PDP</b><br/>Open Policy Agent<br/><i>opa-policies/*.rego</i>")
-    PEP("<b>Policy Enforcement Point — PEP</b><br/>AAP Controller + EDA Controller")
-    PIP_ID("<b>Identity — PIP</b><br/>IdM / FreeIPA<br/>SPIFFE / SPIRE")
-    SECRETS("<b>Secrets Management</b><br/>HashiCorp Vault<br/>Dynamic creds · SSH CA · Secret storage")
-    INFRA("<b>Infrastructure</b><br/>App · DB · Arista cEOS · RHEL containers")
-    NETBOX("<b>State — PIP</b><br/>NetBox CMDB<br/>Inventory · Maintenance windows")
-    MONITOR("<b>Monitoring — PIP</b><br/>Splunk / Wazuh")
-
-    PDP -- "allow / deny + violations" --> PEP
-    PEP -. "query policy" .-> PDP
-    PIP_ID <-- "resolve identity + groups" --> PEP
-    PEP <-- "request credentials" --> SECRETS
-    NETBOX -- "infrastructure state" --> PDP
-    PEP -- "execute / configure" --> INFRA
-    MONITOR -- "webhook alert → EDA" --> PEP
-    PEP -. "revoke / remediate" .-> SECRETS
-    INFRA -. "security events" .-> MONITOR
-
-    style PDP fill:#4a90d9,color:#fff,stroke:#2a6cb8
-    style PEP fill:#d94a4a,color:#fff,stroke:#b82a2a
-    style PIP_ID fill:#50b848,color:#fff,stroke:#3a8a34
-    style SECRETS fill:#f5a623,color:#fff,stroke:#d4891a
-    style INFRA fill:#7b7b7b,color:#fff,stroke:#5a5a5a
-    style NETBOX fill:#50b848,color:#fff,stroke:#3a8a34
-    style MONITOR fill:#50b848,color:#fff,stroke:#3a8a34
-....
+image::
 
 == Why Ansible Automation Platform?
 
@@ -311,43 +283,6 @@ _You'll practice:_ Tooling independence, continuous monitoring, automated contai
 
 Each section adds a layer.
 Here's the big picture:
-
-[mermaid]
-....
-flowchart LR
-    S1("<b>Section 1 — VERIFY</b><br/>Wire AAP to IdM,<br/>Vault, OPA, NetBox, Gitea")
-    S2("<b>Section 2 — DEPLOY</b><br/>OPA + Vault + Arista<br/>in a deploy workflow")
-    S3("<b>Section 3 — ENFORCE</b><br/>OPA blocks at AAP<br/>launch — platform gate")
-    S4("<b>Section 4 — PROVE IDENTITY</b><br/>SPIFFE SVID + dual<br/>OPA rings + VLAN + NetBox")
-    S5("<b>Section 5 — RESPOND</b><br/>SIEM detects attack<br/>→ EDA revokes creds")
-
-    subgraph EXT["Extended Security Workshop"]
-        S6("<b>Section 6 — HARDEN</b><br/>Layered SSH lockdown<br/>+ break-glass")
-        S7("<b>Section 7 — WAZUH</b><br/>Alternative SIEM path")
-    end
-
-    S1 --> S2 --> S3 --> S4
-    S1 --> S5 --> S6
-    S4 --> S6
-    S5 -.-> S7
-
-    style S1 fill:#4a90d9,color:#fff,stroke:#2a6cb8
-    style S2 fill:#f5a623,color:#fff,stroke:#d4891a
-    style S3 fill:#d94a4a,color:#fff,stroke:#b82a2a
-    style S4 fill:#50b848,color:#fff,stroke:#3a8a34
-    style S5 fill:#9b59b6,color:#fff,stroke:#7d3c98
-    style S6 fill:#7b7b7b,color:#fff,stroke:#5a5a5a
-    style S7 fill:#7b7b7b,color:#fff,stroke:#5a5a5a
-    style EXT fill:none,stroke:#999,stroke-width:2px,stroke-dasharray: 5 5
-....
-
-== Before you begin
-
-. Confirm you can log into the **automation controller** at `https://control.zta.lab` with the credentials your instructor provides.
-. Review the <<lab-common-environment,Lab environment reference>> at the top of this page for hostnames, URLs, and workshop accounts.
-. Work through the sections in order — each one builds on what came before. Your instructor will let you know if you should skip ahead.
-. Every section ends with a **validation checklist**. Use it to make sure you've hit the objectives before moving on.
-. Extended exercises are optional and clearly marked. If you're short on time, stick to the core track.
 
 [TIP]
 .One thing to keep in mind
