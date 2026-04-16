@@ -1,3 +1,4 @@
+* xref:index.adoc[Zero Trust with Ansible Automation Platform details]
 * xref:module-01.adoc[Module-01. Verify ZTA Components and AAP Integration]
 * xref:module-02.adoc[Module-02. Deploy application with short-lived credentials]
 * xref:module-03.adoc[Module-03. AAP Policy as Code: platform-gated patching]
