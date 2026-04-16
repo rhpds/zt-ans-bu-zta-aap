@@ -152,69 +152,6 @@ Playbooks live in version control in Gitea.
 That gives your security team a full chain of evidence from *intent* (the code commit) through *authorisation* (the OPA decision) to *execution* (the job output).
 That's the kind of audit trail Zero Trust demands.
 
-== What you'll be working with
-
-The lab deploys a full ZTA stack.
-Here's every component, what role it plays, and what it actually does in the exercises:
-
-[cols="2,2,3",options="header"]
-|===
-| Component | ZTA role | What it does in the lab
-
-| **IdM (FreeIPA)**
-| Identity provider
-| Your user directory — provides users, groups, Kerberos, LDAP, and the CA trust chain. Group memberships drive AAP team assignments and OPA policy decisions.
-
-| **HashiCorp Vault**
-| Secrets manager + SSH CA
-| Issues short-lived database credentials, signs SSH certificates on demand, and stores secrets that AAP pulls at job time.
-
-| **Open Policy Agent (OPA)**
-| Policy decision point
-| The brain that says yes or no. Evaluates Rego policies for job launches, database access, network changes, and data classification.
-
-| **SPIFFE / SPIRE**
-| Workload identity
-| Proves the automation platform is who it says it is. Issues cryptographic identity documents (SVIDs) that OPA checks before allowing sensitive operations.
-
-| **NetBox**
-| Source of truth
-| Your infrastructure CMDB — provides dynamic inventory to AAP and maintenance-window state to OPA. Automation targets what actually exists, not a stale spreadsheet.
-
-| **Arista cEOS**
-| Network segmentation
-| A three-switch fabric (one spine, two leaf) that enforces ACLs between the app and data tiers. Valid credentials aren't enough — you also need an allowed network path.
-
-| **Splunk**
-| Security monitoring
-| Aggregates logs, detects attack patterns (like brute-force SSH), and sends webhook alerts to EDA for automated response.
-
-| **Wazuh**
-| Security monitoring (optional)
-| An alternative SIEM path for the same detection-and-response pattern. Used in the optional Section 7.
-
-| **Gitea**
-| Git server
-| Hosts the playbooks and inventory plugins. AAP syncs projects from Gitea, so everything is version-controlled and auditable.
-
-| **AAP Controller**
-| Policy enforcement point
-| The hub of the lab — runs job templates, resolves credentials, enforces Policy as Code, manages RBAC, and logs everything.
-
-| **EDA Controller**
-| Event-driven response
-| Listens for SIEM webhooks, matches them against rulebook conditions, and triggers remediation jobs on the controller.
-
-| **PostgreSQL + Flask App**
-| The thing you're protecting
-| The "Global Telemetry Platform" — a database-backed web app that you'll deploy, rotate credentials for, and defend through incident response exercises.
-
-|===
-
-== How it all connects
-
-Each section adds a layer.
-Here's the big picture:
 
 [TIP]
 .One thing to keep in mind
