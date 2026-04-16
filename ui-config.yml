@@ -1,5 +1,34 @@
 ---
-type: showroom
+antora:
+  name: modules
+  dir: www
+  modules:
+    - name: index
+      label: "The day the application died"
+      solveButton: false
+    - name: module-01
+      label: "Verify ZTA + AAP integration"
+      solveButton: false
+    - name: module-02
+      label: "Short-lived credentials"
+      solveButton: false
+    - name: module-03
+      label: "Policy as Code patching"
+      solveButton: false
+    - name: module-04
+      label: "SPIFFE VLAN management"
+      solveButton: false
+    - name: module-05
+      label: "Splunk → EDA → Vault"
+      solveButton: false
+    # - name: module-06
+    #   label: "SSH lockdown & break-glass"
+    #   solveButton: false      
+    # - name: module-07
+    #   label: "Wazuh"
+    #   solveButton: false      
+      
+#type: showroom
 tabs:
   - name: Lab Topology
     url: https://dashboard-http-${guid}.${domain}
