@@ -1,6 +1,6 @@
 ---
 site:
-  title: Ansible Automation Platform, HashiCorp Terraform and Vault!
+  title: Implementing Zero Trust with Ansible Automation Platform
   url: https://rhpds.github.io/zt-ans-bu-hashi-aap/modules/index.html
   start_page: modules::index.adoc
 
