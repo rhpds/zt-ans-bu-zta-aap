@@ -1,4 +1,6 @@
 = Section 1 — Verify ZTA Components and AAP Integration
+:toc: left
+:toclevels: 3
 :icons: font
 :experimental:
 :idprefix:
@@ -8,7 +10,7 @@
 ====
 In NIST SP 800-207 terms, **Ansible Automation Platform (AAP)** is the *Policy Enforcement Point (PEP)*: operational change flows *through* it. **Open Policy Agent (OPA)** is a *Policy Decision Point (PDP)*: it answers allow/deny from **identity** (IdM), **state** (NetBox), and **context** encoded in Rego. **Vault** supplies *short-lived, least-privilege* secrets instead of long-lived passwords in CMDBs or disks. **SPIFFE/SPIRE** (later sections) binds actions to a *verified workload*, not only a human username.
 
-**Why that matters:** Zero Trust assumes breach and removes implicit trust. You will repeatedly see *verify then act*, *deny by default*, *least privilege*, and *auditability*—not as buzzwords but as concrete gates in the automation path.
+**Why this matters:** Zero Trust assumes breach and removes implicit trust. You'll see *verify then act*, *deny by default*, *least privilege*, and *auditability* throughout—not as buzzwords but as concrete gates in the automation path.
 ====
 
 
@@ -91,32 +93,32 @@ All IdM user passwords for workshop accounts: `ansible123!`
 
 == Overview
 
-Connect Ansible Automation Platform to the Zero Trust stack. Workshop credentials are pre-created; you verify Vault lookups and related objects, then configure inventory, project, templates, and run checks against IdM, Vault, OPA, NetBox, and Gitea.
+Connect Ansible Automation Platform to the Zero Trust stack. Workshop credentials are pre-created; you'll verify Vault lookups and related objects, then configure inventory, project, templates, and run checks against IdM, Vault, OPA, NetBox, and Gitea.
 
 [IMPORTANT]
 .Why this section exists
 ====
-Until AAP is wired to the same **identity, policy, secrets, and inventory truth** the rest of the architecture uses, automation would be a *shadow admin path*—easy to bypass Zero Trust intent. Here you make AAP a **first-class citizen** of the ZTA fabric: it authenticates like other services, reads policy from OPA, pulls secrets from Vault, and builds inventory from NetBox so *what you run jobs against* matches *what the organisation says exists*.
+Until AAP is wired to the same **identity, policy, secrets, and inventory truth** the rest of the architecture uses, automation would be a *shadow admin path*—easy to bypass Zero Trust intent. Here you'll make AAP a **first-class citizen** of the ZTA fabric: it authenticates like other services, reads policy from OPA, pulls secrets from Vault, and builds inventory from NetBox so *what you run jobs against* matches *what the organization says exists*.
 ====
 
 == Exercise 1.1 — Verify AAP credentials (pre-configured, Vault-sourced)
 
 === Goal
 
-Workshop credentials have been created already. We should **confirm** Vault KV data and controller objects match the requirements for this lab.
+To save time, workshop credentials have been created already. You'll **confirm** Vault KV data and controller objects match the requirements for this lab.
 
 [TIP]
 .Zero Trust: secrets on the platform
 ====
-Machine and Arista passwords are **not** stored in AAP: the controller holds **Vault paths** and resolves them at job time. Only the bootstrap Vault lookup (and NetBox token) behave like classic "stored" secrets in the platform database—tighten that in production (AppRole, TLS, policy).
+Machine and Arista passwords are **not** stored in AAP: the controller holds **Vault paths** and resolves them at job time. Only the bootstrap Vault lookup (and NetBox token) behave like classic "stored" secrets in the platform database. In production, tighten that with AppRole, TLS, and policy.
 ====
 
 === Step 1 — Confirm Vault paths
 
-Navigate to the Terminal tab, this terminal is directly connected to a machine called central. You can ssh into other machines from here. Let us connect to our vault machine.
+Navigate to the Terminal tab. This terminal is directly connected to a machine called central. You can ssh into other machines from here. Let's connect to our vault machine.
 
 
-[source,bash]
+[source,console]
 ----
 [rhel@central ~]$ ssh vault
 The authenticity of host 'vault (<no hostip for proxy command>)' can't be established.
@@ -127,10 +129,10 @@ Warning: Permanently added 'vault' (ED25519) to the list of known hosts.
 rhel@vault's password: 
 ----
 
-Authenticate with the rhel users password: ansible123!
-Next lets view the details of the vault, we need to unlock the vault and login. 
+Authenticate with the rhel user's password: ansible123!
+Next, view the vault details. You'll need to unlock the vault and login. 
 
-[source,bash]
+[source,console]
 ----
 export VAULT_ADDR=http://vault.zta.lab:8200
 vault login -method=userpass username=admin password=ansible123!
@@ -140,7 +142,7 @@ vault kv get secret/network/arista
 vault kv get secret/db/admin
 ----
 
-[source,bash]
+[source,console]
 ----
 Key                    Value
 ---                    -----
@@ -174,6 +176,7 @@ Key                Value
 ---                -----
 become_password    ansible123!
 password           ansible123!
+
 ======= Secret Path =======
 secret/data/network/arista
 
@@ -214,21 +217,21 @@ username    postgres
 ----
 
 [NOTE]
-.Why we verify Vault before anything else
+.Why verify Vault before anything else
 ====
-In later sections, AAP will request **short-lived database credentials** and **signed SSH certificates** from Vault at job time. Before relying on that chain, you need to confirm it is wired correctly — this is the ZTA principle of **never trust, always verify** applied to your own infrastructure.
+In later sections, AAP will request **short-lived database credentials** and **signed SSH certificates** from Vault at job time. Before relying on that chain, confirm it's wired correctly. This is the ZTA principle of **never trust, always verify** applied to your own infrastructure.
 
-Notice that AAP credential objects store **Vault paths**, not passwords. The actual secrets live in Vault and are resolved at runtime. That indirection is deliberate: AAP is the *Policy Enforcement Point* that consumes secrets, not a password store. If a credential is compromised, you rotate it in **one place** (Vault) and every job template picks up the change automatically.
+AAP credential objects store **Vault paths**, not passwords. The actual secrets live in Vault and are resolved at runtime. That indirection is deliberate: AAP is the *Policy Enforcement Point* that consumes secrets, not a password store. If a credential is compromised, you rotate it in **one place** (Vault) and every job template picks up the change automatically.
 
-By inspecting both sides — Vault KV data *and* AAP lookup metadata — you are practising the **audit discipline** Zero Trust demands: for any credential you should be able to answer *where it comes from*, *who can read it*, and *what its scope is*.
+By inspecting both sides—Vault KV data *and* AAP lookup metadata—you're practicing the **audit discipline** Zero Trust demands: for any credential you should be able to answer *where it comes from*, *who can read it*, and *what its scope is*.
 ====
 
 
 === Step 2 — Confirm credentials in the controller
 
-Navigate to the Automation controller tab, and login with the 
+Navigate to the Automation controller tab and login using the supplied credentials: 'admin/ansible123'
 
-Open **Credentials** and verify these names exist (from `setup/configure-aap-credentials.yml`). Edit each and confirm:
+Open **Automation Execution** -> **Infrastructure** -> **Credentials** and verify these names exist.
 
 * `ZTA Vault Credential` — Vault URL and v2; bootstrap auth present.
 * `ZTA Machine Credential` — user `rhel`, sudo; **Password** and **Become** use lookups to `secret/data/machine/rhel` (`password`, `become_password`).
@@ -238,14 +241,43 @@ Open **Credentials** and verify these names exist (from `setup/configure-aap-cre
 
 Do not change lookup paths unless an instructor is troubleshooting.
 
+=== Test our HashiVault lookup! 
 
-=== Step 3 — Vault SSH CA
+We use Hashivault in this workshop so we can lookup credentials and keep credentials out of AAP. We should test that this lookup is actually working correctly. 
 
-[source,bash]
+Edit the 'ZTA Vault Credential', you will see there is a 'Test' button next to the save at the bottom. Click 'Test' 
+
+This allows us to test the lookup provided we give the correct details. These are the details we recieved earlier in the exercise.
+
+[source,shell]
 ----
-vault read ssh/config/ca
-vault read ssh/roles/ssh-signer
+====== Secret Path ======
+secret/data/machine/rhel
+
+======= Metadata =======
+Key                Value
+---                -----
+created_time       2026-04-14T09:31:06.20779958Z
+custom_metadata    <nil>
+deletion_time      n/a
+destroyed          false
+version            1
+
+========= Data =========
+Key                Value
+---                -----
+become_password    ansible123!
+password           ansible123!
 ----
+
+|===
+| Name of Secret | secret
+| Path to Secret | /machine/rhel
+| Path to Auth | userpass
+| Key Name | password
+|===
+
+Click 'Run' to see if the lookup is working. You can now attempt with the other two credential sets.
 
 .Credential summary
 [cols="2,2,3",options="header"]
@@ -258,18 +290,13 @@ vault read ssh/roles/ssh-signer
 | ZTA Vault SSH | Vault Signed SSH | AppRole + `ssh-signer`
 |===
 
-[TIP]
-.Vault SSH CA vs static keys
-====
-**Signed SSH certificates** are the Zero Trust answer to shared static keys. 
-====
 
 [[exercise-1-2-idm-ldap-authentication-methods]]
 == Exercise 1.2 — IdM LDAP (Authentication Methods UI)
 
 === Steps — Create LDAP authentication
 
-. Log in as platform **admin**. Navigate to  **Access Management** → **Authentication Methods** → **Create authentication**.
+. On the platform as **admin**. Navigate to  **Access Management** → **Authentication Methods** → **Create authentication**.
 . Set **Authentication type** to **LDAP**.
 . Fill the top fields:
 
@@ -334,9 +361,9 @@ email: mail
 - (uid=%(user)s)
 ----
 
-. Enable **Enabled** (and **Create objects** if you want local user records on first IdM login). Save (**Create Authentication Method**).
+. Enable **Enabled** (and **Create objects**). Save (**Create Authentication Method**).
 
-Click 'Save Authentication Method', and then navigte to 'Mapping'.
+Click 'Save Authentication Method', then navigate to 'Mapping'.
 
 <PICTURE>
 
@@ -347,16 +374,16 @@ Click 'Save Authentication Method', and then navigte to 'Mapping'.
 
 ==== Why authenticator mapping matters for Zero Trust
 
-In a Zero Trust model, **authentication alone is insufficient**. Proving identity (LDAP bind succeeds) does not grant any permissions — that is by design. Authenticator maps are the mechanism that translates a verified external identity into scoped, least-privilege access within AAP:
+In a Zero Trust model, **authentication alone is insufficient**. Proving identity (LDAP bind succeeds) doesn't grant any permissions—that's by design. Authenticator maps translate a verified external identity into scoped, least-privilege access within AAP:
 
-* **Without maps:** An IdM user logs in successfully but sees an empty platform — no organisation membership, no teams, no templates. Authentication happened, but authorisation did not.
-* **With maps:** LDAP group membership (e.g. `team-security`) flows into an AAP team assignment, which in turn controls which job templates that user can see and execute. The external identity provider (IdM) remains the **single source of truth** — no parallel local accounts to maintain, and offboarding in IdM immediately removes AAP access on next login.
-* **Least privilege by construction:** Each map grants the minimum role needed. Organisation members can view; team members can execute their team's templates; only `zta-admins` receive org-admin or superuser. There is no "everyone gets everything" default.
+* **Without maps:** An IdM user logs in successfully but sees an empty platform—no organization membership, no teams, no templates. Authentication happened, but authorization didn't.
+* **With maps:** LDAP group membership (e.g. `team-security`) flows into an AAP team assignment, which controls which job templates that user can see and execute. The external identity provider (IdM) remains the **single source of truth**—no parallel local accounts to maintain, and offboarding in IdM immediately removes AAP access on next login.
+* **Least privilege by construction:** Each map grants the minimum role needed. Organization members can view; team members can execute their team's templates; only `zta-admins` receive org-admin or superuser. There's no "everyone gets everything" default.
 * **Auditability:** Every job execution traces back through the map chain: IdM user → LDAP group → AAP team → template permission → job run. This is the audit trail Zero Trust demands.
 
 ==== Which groups you reference (by DN)
 
-These are the IdM groups the workshop uses in **Group** triggers (`dc=zta,dc=lab`). Use the **full DN** in the **Groups** list for each map (one DN per entry; if you combine several groups in one rule, include each DN the UI expects for that operation).
+These are the IdM groups the workshop uses in **Group** triggers (`dc=zta,dc=lab`). Use the **full DN** in the **Groups** list for each map (one DN per entry).
 
 [cols="2,4",options="header"]
 |===
@@ -392,7 +419,7 @@ Use **Mapping** on your LDAP authenticator and click on 'Create mapping' to crea
 | Role | Organization Member
 |===
 
-Click 'Save mapping' to view the details, and to create the next one. You can click on 'Mapping' to get back to the mapping page. Continue with the rest of the mappings.
+Click 'Save mapping' to view the details and create the next one. Click on 'Mapping' to get back to the mapping page. Continue with the rest of the mappings.
 
 <PICTURE>
 
@@ -426,7 +453,7 @@ Click 'Save mapping' to view the details, and to create the next one. You can cl
 |===
 
 
-Below is an example for the Infrastructure team, create this and continue with the remaining teams referenced below.
+Below is an example for the Infrastructure team. Create this and continue with the remaining teams referenced below.
 
 . **Team (Group)** — one map per team, each mapping an IdM group to an AAP team in **Default**:
 
@@ -461,18 +488,23 @@ Below is an example for the Infrastructure team, create this and continue with t
 
 === Verify
 
-. Open an the Automation tab, select the 'admin' user in the top right and sign out. Log into the platform now as **`ztauser`** / `ansible123!`.
+. In the AAP tab, select the 'admin' user in the top right and sign out. Log in as **`ztauser`** / `ansible123!`.
 . Confirm the user lands on a populated dashboard.
 . Check that team membership is visible under **Access Management** → **Users** → `ztauser` → **Teams**.
 
+This workshop also has a CMDB as a source of truth, If you navigate to the Netbox tab and login with the credentials 'admin/netbox'. Navigate to 'Sites' -> 'Sites' and select 'ZTA Workshop Lab'. You will be able to view the devices and configurations of the VLANS.
+
+<PICTURE>
+
+Clicking on VLANs we can see we have three VLANS configured on our network. App-tier, Data-tier and a Management VLAN. We will interact with this later in the workshop. 
+
+<PICUTRE>
 
 [TIP]
-.Source of truth and GitOps - TIP
+.Source of truth and GitOps
 ====
 **NetBox** is the *infrastructure source of truth* in this workshop: if a host is decommissioned there, it should disappear from automation inventory on sync—reducing "ghost" targets attackers or operators could hit. **Gitea** holds *intent* (playbooks); together they separate **what exists** (CMDB) from **what we want to do** (code), both subject to policy in later sections.
 ====
-
-NOTE: In order to save time for this workshop, we will provide the templates for each section.
 
 
 == Exercise 1.3 — Verify ZTA services
@@ -484,10 +516,10 @@ NOTE: In order to save time for this workshop, we will provide the templates for
 ====
 
 
-Navigate on the automation platform to Automation Execution -> Templates. We have a number of templates avaiable.
-Run **Verify ZTA Services** by clicking on the rocket on the right of the template. 
+Navigate back to AAP and to Automation Execution -> Templates on the automation platform. There are a number of templates available.
+Run **Verify ZTA Services** by clicking on the rocket on the right of the template.
 
-Inspect the output of the template, at the bottom we have a summury of the checks. If successful we can proceed.
+Inspect the output. At the bottom there's a summary of the checks. If successful, you can proceed.
 
 
 == Exercise 1.4 — Test Vault integration
@@ -495,10 +527,10 @@ Inspect the output of the template, at the bottom we have a summury of the check
 [TIP]
 .Short-lived database identities
 ====
-Dynamic DB users with a **TTL** limit how long a leaked credential is useful—core **assume breach** hygiene. Vault **revokes** the lease so the database role disappears without a human running `DROP USER`. That is how **least privilege** becomes **time-bound privilege**.
+Dynamic DB users with a **TTL** limit how long a leaked credential is useful—core **assume breach** hygiene. Vault **revokes** the lease so the database role disappears without a human running `DROP USER`. That's how **least privilege** becomes **time-bound privilege**.
 ====
 
-Next execute the  **Test Vault Integration**. Observe short-lived PostgreSQL users (unique name per run, TTL, revoke at end).
+Next, execute **Test Vault Integration**. Observe short-lived PostgreSQL users (unique name per run, TTL, revoke at end).
 
 [source]
 ----
@@ -521,19 +553,45 @@ ok: [vault] => {
 [TIP]
 .Cryptographic proof of permission to log in
 ====
-The certificate encodes **who may act as which principal** and **for how long**. Hosts need only trust the CA once; they do not need network reachability to Vault at login time. That separation is useful in segmented networks and matches the ZTA idea that **access is explicitly granted and expires**.
+The certificate encodes **who may act as which principal** and **for how long**. Hosts only need to trust the CA once; they don't need network reachability to Vault at login time. That separation is useful in segmented networks and matches the ZTA idea that **access is explicitly granted and expires**.
 ====
 
-Run **Test Vault SSH Certificates**. Observe CA-signed cert, TTL, principals, successful SSH to app/db.
+In this workshop we will use a SSH CA key pair to connect to systems. The CA has been deployed with Ansible to all hosts in this environment already. When AAP needs to run a template, instead of using a password or static key it will ask vault  "sign this public key for principal rhel please" - Vault will check the ssh-signer role to check if rhel is an allowed principal and if the TTL is valid.
+
+Vault will sign the key and returns a short lived credential for AAP to use. AAP will sign in with this certificate to ssh into the system and checks it against the trusted CA to get access to the host.
+
+Once the TTL has expired the certificate is no longer valid to use.
+
+Navigate to the 'Terminal' tab and make sure you are on the vault machine still, or ssh back in, and we can check vault for the requirements.
+
+This will provide the public key:
+
+[source,bash]
+----
+vault read ssh/config/ca
+----
+
+This will provide the details of the signer role:
+[source,bash]
+----
+vault read ssh/roles/ssh-signer
+----
+
+Navigate back to AAP and run **Test Vault SSH Certificates**. Observe CA-signed cert, TTL, principals, successful SSH to app/db.
 
 
+[TIP]
+.Vault SSH CA vs static keys
+====
+**Signed SSH certificates** are the Zero Trust answer to shared static keys.
+====
 
 == Exercise 1.6 — Test OPA policy
 
 [TIP]
 .Deny by default (PDP)
 ====
-OPA returns **allow** only when Rego rules fire; everything else is **implicit deny**. **IdM groups** supply *role-like* attributes the PDP can use, but unlike a static RBAC matrix in one app, the same policy can be **versioned, tested, and shared** across AAP and other PEPs. You are seeing **central policy** backing **distributed enforcement**.
+OPA returns **allow** only when Rego rules fire; everything else is **implicit deny**. **IdM groups** supply *role-like* attributes the PDP can use, but unlike a static RBAC matrix in one app, the same policy can be **versioned, tested, and shared** across AAP and other PEPs. You're seeing **central policy** backing **distributed enforcement**.
 ====
 
 Lastly, run **Test OPA Policy**. Expect allow/deny scenarios for patching, VLAN, and DB access per group membership.
@@ -551,5 +609,5 @@ ok: [central] => {
 "Zero Trust: deny-by-default, policy-driven access."
 ]
 
-If all tests were successful we can move on to the next exercise. 
+If all tests were successful, you can move on to the next exercise. 
 
