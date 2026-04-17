@@ -1,6 +1,4 @@
 = Section 3 — AAP Policy as Code: platform-gated patching
-:toc: left
-:toclevels: 3
 :icons: font
 :idprefix:
 :idseparator: -
