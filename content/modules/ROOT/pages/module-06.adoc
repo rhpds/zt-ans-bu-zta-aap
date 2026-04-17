@@ -1,4 +1,4 @@
-= Section 6 — SSH lockdown and break-glass recovery
+= Section 6 — SSH lockdown and break-glass recovery (WIP)
 :icons: font
 :idprefix:
 :idseparator: -
