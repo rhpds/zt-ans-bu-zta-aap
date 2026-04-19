@@ -41,9 +41,9 @@ tabs:
   # - name: Wazuh
   #   url: https://wazuh-${guid}.${domain}
   #   external: false
-  # - name: Gitea
-  #   url: https://gitea-${guid}.${domain}/
-  #   external: false
+  - name: Gitea
+    url: https://gitea-${guid}.${domain}/
+    external: false
   - name: Splunk
     url: https://splunk-http-${guid}.${domain}
     external: true
