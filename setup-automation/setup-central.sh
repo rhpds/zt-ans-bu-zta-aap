@@ -208,7 +208,6 @@ ansible-playbook -i inventory/hosts.ini setup/configure-dns.yml
 ansible-playbook -i inventory/hosts.ini setup/enroll-idm-clients.yml
 ansible-playbook -i inventory/hosts.ini setup/deploy-central.yml --skip-tags keycloak
 ansible-playbook -i inventory/hosts.ini setup/deploy-db-app.yml
-ansible-playbook -i inventory/hosts.ini setup/deploy-splunk.yml --skip-tags eda_webhook
 
 echo ""
 echo "central bootstrap phase complete"
