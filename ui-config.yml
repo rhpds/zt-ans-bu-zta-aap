@@ -1,37 +1,24 @@
-# ---
-# type: showroom
-# tabs:
-#   - name: Ansible Automation Platform
-#     url: https://control-${guid}.${domain}/
-#     external: false
-#   - name: "Terminal"
-#     url: /wetty_central
-#   - name: IDM
-#     url: https://idm-https-${guid}.${domain}/ipa/ui/
-#     external: false
-#   - name: Netbox
-#     url: https://netbox-${guid}.${domain}
-#     external: false
-#   - name: Keycloak
-#     url: https://keycloak-https-${guid}.${domain}
-#     external: true
-#   - name: OPA
-#     url: https://opa-http-${guid}.${domain}
-#   - name: HashiCorp Vault
-#     url: https://vault-${guid}.${domain}/ui/vault/unseal
-#     external: true
-#   - name: Wazuh
-#     url: https://wazuh-${guid}.${domain}
-#     external: false
-#   - name: Gitea
-#     url: https://gitea-${guid}.${domain}/    
-#     external: false
-#   - name: Splunk
-#     url: https://splunk-${guid}.${domain}
-#     external: true
-
 ---
-type: showroom
+antora:
+  name: modules
+  dir: www
+  modules:
+    - name: module-01
+      label: "Verify ZTA Components and AAP Integration
+      solveButton: false
+    - name: module-02
+      label: "Deploy application with short-lived credentials"
+      solveButton: false
+    - name: module-03
+      label: "AAP Policy as Code: platform-gated patching"
+      solveButton: false
+    - name: module-02
+      label: "SPIFFE-verified network VLAN management"
+      solveButton: false
+    - name: module-03
+      label: "Automated incident response (Splunk → EDA → Vault)"
+      solveButton: false      
+
 tabs:
   - name: Lab Topology
     url: https://dashboard-http-${guid}.${domain}
