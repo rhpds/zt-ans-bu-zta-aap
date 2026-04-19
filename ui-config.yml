@@ -4,7 +4,7 @@ antora:
   dir: www
   modules:
     - name: module-01
-      label: "Verify ZTA Components and AAP Integration
+      label: "Verify ZTA Components and AAP Integration"
     - name: module-02
       label: "Deploy application with short-lived credentials"
     - name: module-03
