@@ -1,1 +1,162 @@
-TO BE
+# Zero Trust Architecture Workshop — Exercise Guide
+
+## Ansible Automation Platform as the Policy Enforcement Point
+
+---
+
+## About This Workshop
+
+This workshop demonstrates how to build and operate a Zero Trust Architecture
+using **Red Hat Ansible Automation Platform** as the central **Policy
+Enforcement Point (PEP)**. Every action — deploying an application, patching
+a server, configuring a network VLAN — must pass through AAP, which consults
+identity, policy, and infrastructure data before allowing execution.
+
+Nothing is trusted by default. Every request is verified. Every credential is
+short-lived. Every decision is auditable. And when an attack is detected, the
+response is automatic.
+
+**Platform version:** Lab instructions assume **Red Hat Ansible Automation Platform 2.6** — the **automation controller** (jobs, workflows, credentials, inventories) and the **Event-Driven Ansible controller** (rulebook activations, decision environments). See the [AAP 2.6 documentation](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.6/) and [Using automation decisions](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.6/html/using_automation_decisions/) for EDA UI details.
+
+---
+
+## Zero Trust Architecture — NIST SP 800-207 Alignment
+
+This workshop maps directly to the NIST Zero Trust Architecture model:
+
+```
+                        ┌─────────────────────────┐
+                        │    Policy Decision       │
+                        │    Point (PDP)           │
+                        │                          │
+                        │    Open Policy Agent     │
+                        │    (OPA)                 │
+                        └────────────┬────────────┘
+                                     │
+                              Policy Decisions
+                              (allow / deny)
+                                     │
+┌──────────┐              ┌──────────▼──────────┐              ┌──────────────┐
+│          │   Request    │                     │   Enforce    │              │
+│  Subject ├─────────────►│  Policy Enforcement │─────────────►│   Resource   │
+│  (User)  │              │  Point (PEP)        │              │              │
+│          │◄─────────────┤                     │◄─────────────┤  Server, DB, │
+│          │   Response   │  Ansible Automation │   Result     │  Network,    │
+└──────────┘              │  Platform (AAP)     │              │  Application │
+                          └──────────┬──────────┘              └──────────────┘
+                                     │
+                          Consults data sources
+                    ┌────────────┼────────────┐
+                    │            │            │
+              ┌─────▼────┐ ┌────▼─────┐ ┌───▼──────┐
+              │   IdM    │ │  Vault   │ │  Netbox  │
+              │Identity  │ │ Secrets  │ │  CMDB    │
+              │Provider  │ │ Manager  │ │ (SoT)   │
+              └──────────┘ └──────────┘ └──────────┘
+```
+
+### How AAP Acts as the PEP
+
+In a traditional network, a firewall is the PEP — it sits between users and
+resources and enforces access decisions. In a Zero Trust Architecture, the PEP
+must do more than just allow or block network traffic. It must:
+
+1. **Verify identity** — Who is making this request? (IdM / Keycloak)
+2. **Check policy** — Is this action allowed given the current context? (OPA)
+3. **Use least privilege** — Grant only the minimum access needed (Vault)
+4. **Validate state** — Is the target resource in a valid state? (Netbox CMDB)
+5. **Enforce the decision** — Execute or deny the automation (AAP)
+6. **Log everything** — Maintain an audit trail (Wazuh / AAP logs)
+7. **Respond automatically** — Revoke access when threats are detected (EDA)
+
+AAP is uniquely positioned as the PEP because **all operational actions flow
+through it**. No one SSHes directly to servers. No one manually configures
+switches. Every change is an AAP job template that checks policy before
+executing.
+
+### Component Roles
+
+| ZTA Role | Component | Function |
+|----------|-----------|----------|
+| **Policy Enforcement Point (PEP)** | AAP | Receives requests, enforces decisions, executes automation |
+| **Policy Decision Point (PDP)** | OPA | Evaluates policy rules, returns allow/deny decisions |
+| **Platform Policy Gate** | AAP Policy as Code | Blocks unauthorised job launches before playbook runs |
+| **Identity Provider** | IdM (FreeIPA) | Authenticates users, manages group memberships |
+| **Identity Broker** | Keycloak | OIDC/SSO federation (future use) |
+| **Workload Identity** | SPIFFE/SPIRE | Cryptographic workload attestation |
+| **Secrets Manager** | HashiCorp Vault | Dynamic credentials, SSH certificates, secrets storage |
+| **CMDB / Source of Truth** | Netbox | Infrastructure state, device inventory, maintenance status |
+| **Source Control** | Gitea | GitOps trigger, automation code repository |
+| **SIEM** | Wazuh | Security event monitoring, brute-force detection |
+| **Event-Driven Automation** | Event-Driven Ansible controller (AAP 2.6) | Automated incident response triggered by SIEM / webhooks |
+| **Resources** | RHEL containers, Arista switches, PostgreSQL | Managed infrastructure |
+
+---
+
+## Lab Environment
+
+### Access Information
+
+| System | URL / Address | Credentials |
+|--------|---------------|-------------|
+| Automation controller (AAP 2.6) | `https://control.zta.lab` | *provided by instructor* |
+| Event-Driven Ansible controller (AAP 2.6) | Same platform as automation controller (EDA UI per deployment) | *provided by instructor* |
+| IdM (FreeIPA) | `https://central.zta.lab` | admin / ansible123! |
+| OPA | `http://central.zta.lab:8181` | (no auth) |
+| Vault | `http://vault.zta.lab:8200` | admin / ansible123! |
+| Netbox | `http://netbox.zta.lab:8880` | *token provided* |
+| Gitea | `http://gitea.zta.lab:3000` | *provided by instructor* |
+| Wazuh Dashboard | `http://wazuh.zta.lab:5601` | *provided by instructor* (container on central) |
+| Splunk | `http://splunk.zta.lab:8000` | admin / *configured password* (container on central) |
+| Application | `http://app.zta.lab:8081` | (no auth — dashboard, container on central) |
+
+### Workshop Users in IdM
+
+The IdM directory is populated with 19 users across 4 teams. The exercises use
+the first four accounts directly.
+
+**Primary scenario accounts:**
+
+| Username | Groups | Role in Exercises |
+|----------|--------|-------------------|
+| `ztauser` | zta-admins, patch-admins, app-deployers | General admin — can patch and deploy |
+| `netadmin` | zta-admins, network-admins | Network admin — can configure VLANs |
+| `appdev` | app-deployers | App developer — can trigger deployments |
+| `neteng` | *(none)* | Network engineer — **will be denied** |
+
+**Infrastructure team (`team-infrastructure`):**
+
+| Username | Name | Title | Functional Groups |
+|----------|------|-------|-------------------|
+| `jsmith` | James Smith | Infrastructure Team Lead | zta-admins, patch-admins, change-approvers |
+| `rwilson` | Robert Wilson | Senior Sysadmin | patch-admins |
+| `nobrien` | Nora O'Brien | DBA | db-admins, patch-admins |
+| `djohnson` | David Johnson | Network Architect | network-admins, change-approvers |
+| `agarcia` | Ana Garcia | Network Engineer | network-admins |
+
+**DevOps team (`team-devops`):**
+
+| Username | Name | Title | Functional Groups |
+|----------|------|-------|-------------------|
+| `lkim` | Lisa Kim | DevOps Lead | zta-admins, app-deployers, change-approvers |
+| `mchen` | Michael Chen | DevOps Engineer | app-deployers, patch-admins |
+| `ksato` | Kenji Sato | Platform Engineer | app-deployers, patch-admins |
+
+**Security team (`team-security`):**
+
+| Username | Name | Title | Functional Groups |
+|----------|------|-------|-------------------|
+| `mrodriguez` | Maria Rodriguez | Security Lead | zta-admins, security-ops, change-approvers |
+| `spatel` | Sarah Patel | Security Analyst | security-ops |
+| `fnguyen` | Felix Nguyen | SOC Analyst | security-ops |
+
+**Application team (`team-applications`):**
+
+| Username | Name | Title | Functional Groups |
+|----------|------|-------|-------------------|
+| `twright` | Tom Wright | Junior Developer | app-deployers |
+| `ebell` | Emma Bell | Senior Developer | app-deployers |
+| `cmorales` | Carlos Morales | QA Engineer | *(none — read-only)* |
+| `pryan` | Patricia Ryan | Release Manager | app-deployers, change-approvers |
+
+All passwords: `ansible123!`
