@@ -5,19 +5,14 @@ antora:
   modules:
     - name: module-01
       label: "Verify ZTA Components and AAP Integration
-      solveButton: false
     - name: module-02
       label: "Deploy application with short-lived credentials"
-      solveButton: false
     - name: module-03
       label: "AAP Policy as Code: platform-gated patching"
-      solveButton: false
     - name: module-02
       label: "SPIFFE-verified network VLAN management"
-      solveButton: false
     - name: module-03
       label: "Automated incident response (Splunk → EDA → Vault)"
-      solveButton: false      
 
 tabs:
   - name: Lab Topology
