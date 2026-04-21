@@ -1,4 +1,5 @@
 = Section 5 — Automated incident response (Splunk → EDA → Vault)
+
 :icons: font
 :idprefix:
 :idseparator: -
@@ -7,127 +8,217 @@
 [IMPORTANT]
 .Assume breach → contain blast radius
 ====
-Detection will always be imperfect. Zero Trust asks **what happens next**. Here, a high-volume SSH failure pattern triggers **automated revocation** of the application’s **database credentials**, not just an email. This limits what an attacker who gained foothold on the app host can reach next (lateral movement to sensitive data). The app may go **intentionally unhealthy**. You’re trading availability for confidentiality in the critical window after suspected compromise.
+Detection will always be imperfect; Zero Trust asks **what happens next**. Here, a high-volume SSH failure pattern triggers **automated revocation** of the application's **database credentials**—not merely an email. That **limits what an attacker who gained foothold on the app host** can reach next (lateral movement to sensitive data). The app may go **intentionally unhealthy**; that is **trading availability for confidentiality** in the critical window after suspected compromise.
 ====
 
-== Prerequisites
-
-* Section 2 complete (app deployed with Vault DB creds).
-* Splunk receiving `linux_secure` from app/db (`setup/integrate-splunk.yml` as deployed).
-* **Event-Driven Ansible controller** (AAP 2.6) receiving webhooks, or standalone `ansible-rulebook` for demos.
-* Section 5 EDA resources deployed (`configure-aap-project.yml --tags eda,section5,rbac`): EDA project, Decision Environment, **ZTA EDA Event Stream** credential (token from Vault).
 
 [TIP]
 .Visible telemetry
 ====
-Splunk indexes **evidence** from hosts (via forwarders). ZTA monitoring isn't optional decoration. It feeds **continuous security analytics** that can drive **orchestrated response** through EDA without waiting for humans to notice a dashboard.
+Splunk indexes **evidence** from hosts (via forwarders). ZTA monitoring is not optional decoration—it feeds **continuous security analytics** that can drive **orchestrated response** through EDA without waiting for humans to notice a dashboard.
 ====
 
-== Exercise 5.1 — AAP job templates
+== Exercise 5.1 — Explore Splunk
 
-[cols="2,3",options="header"]
+
+Navigate to the Splunk tab, this will open Splunk on another window and you can login with 'admin/ansible123!'
+
+NOTE: Splunk can seem like it has disconnected, you just need to refresh.
+
+Navigate to 'Apps' -> 'Search and Reporting'. From here we can verify that Splunk is recieving data from our infrastructure. Run the following search:
+
+[source,bash]
+----
+index=zta_* | stats count by index, sourcetype | sort -count
+----
+
+This will should return with a number of indexes for the infrastructure. 
+
+Splunk has been configured using the Event-Driven Ansible plugin, which we will update shortly. This allows us to trigger actions via Event-Driven Ansible from Splunk. Now, go back to AAP and navigate to Automation Decisions -> Event Streams.
+
+Event Streams provide a way for us to create an authenticated endpoint for Webhooks which are then internally routed to the appropriate rulebook for processing. Click on 'Create event stream' to create one:
+
+
 |===
-| Template | Playbook
-| Emergency: Revoke App Credentials | `section5/playbooks/revoke-app-credentials.yml`
-| Simulate Brute Force | `section5/playbooks/simulate-bruteforce.yml`
-| Restore App Credentials | `section5/playbooks/restore-app-credentials.yml`
+| Name | Splunk EDA
+| Organization | Default
+| Event Stream Type | Token Event Stream
+| Credential | ZTA EDA Event Stream
 |===
 
-Use **ZTA Lab Inventory** and **ZTA Machine Credential**.
+Once created, there is a URL that is generated. This URL is the single endpoint for your webhooks. You can have multiple webhooks deliver to this endpoint and all payloads will be routed internally. Copy this generated URL as we wil need it to update Splunk.
+
+image:: s05p01.png
+
+
+Go back to your Splunk instance, and navigate to 'Apps' -> Event-Driven Ansible Add-on for Splunk. Click 'Add' and create the following integration:
+
+|===
+| Name | EDA
+| Integration Type | Webhook
+| Environment | ZTA
+| Webhook Endpoint | https://192.168.1.10:443/eda-event.....
+| Webhook Auth Type | API Key in header
+| Authentication Token | zta-eda-webhook-a1b2c3d4-e5f6-7890
+|===
+
+NOTE: Your URL from Event-Streams will use the aap.example.org domain, please change this to the IP 192.168.1.10
+
+Once configured we are ready to simulate an attack. 
+
 
 [TIP]
-.Revoke vs “block IP”
+.Revoke vs "block IP"
 ====
-This lab **revokes secrets** in Vault (and stops reliance on DB access) instead of only blocking a source IP. Useful when attackers pivot internally or use many IPs. The approach: **credential-centric containment**. Shrink **privilege** first; network blocks can layer on top.
+This lab **revokes secrets** in Vault (and stops reliance on DB access) instead of only blocking a source IP—useful when attackers pivot internally or use many IPs. It illustrates **credential-centric containment**: shrink **privilege** first; network blocks can layer on top.
 ====
 
 == Exercise 5.2 — Splunk saved search / alert
 
-In Splunk (`http://central.zta.lab:8000`), confirm failed SSH events exist:
+In AAP we can configure our Event Stream to not forward the event, this is great if you want to view the payload. Navigate back to the event stream, click on Splunk EDA and disable the toggle on the right that forwards events. 
+
+image:: s05p02.png
+
+Now we can trigger a simulated brute foce if you run the template 'Simulate Brute Force'. Launch this template and then navigate to Splunk.
+
+
+In Splunk , 'Apps' ->, 'Search and Reporting', confirm failed SSH events are arriving:
 
 [source]
 ----
 index=zta_app sourcetype=syslog "Authentication failure"
 ----
 
-Also check VM-level auth logs:
-
-[source]
-----
-index=zta_syslog sourcetype=syslog sshd "Authentication failure"
-----
-
-Create alert (example search from README):
+The brute-force detection search extracts the attacker IP with `rex` and aggregates by host:
 
 [source]
 ----
 (index=zta_app OR index=zta_syslog) sourcetype=syslog "Authentication failure"
+| rex field=_raw "from (?P<src_ip>\d+\.\d+\.\d+\.\d+)"
 | stats count by src_ip, host
 | where count >= 5
+| sort -count
 ----
 
-Real-time window (e.g. 60s), webhook action to EDA: `http://control.zta.lab:5000/endpoint` with auth token `zta-eda-webhook-a1b2c3d4-e5f6-7890` (from Vault KV `secret/services/eda-webhook`; must match the **ZTA EDA Event Stream** credential).
 
-REST API variant documented in `section5/README.md`.
+Navigate to the 'Settings' -> 'Searches, reports and alerts' section. Change the fields to:
+
+|===
+| Type| All
+| App | All
+|===
+
+You will see the pre-configured ZTA: SSH Brute Force Detected saved search. If you click 'View Recent' it will take you to the most recent events and alerts. 
+
+Now, lets go back to AAP. Click on Event Streams, and you will notice you have had a number of events come in, so we know the integration is working between Splunk and EDA. Click on the event stream and scroll down to see the event payload that has been recieved:
+
+[source,json]
+----
+app: ansible_addon_for_splunk
+owner: admin
+results:
+  __mv_count: ''
+  __mv_host: ''
+  __mv_src_ip: ''
+  count: '10'
+  host: app
+  rid: '0'
+  src_ip: 192.168.1.10
+results_rest_link: https://splunk.zta.lab:8089/services/search/v2/jobs/scheduler__admin_YW5zaWJsZV9hZGRvbl9mb3Jfc3BsdW5r__RMD5c814727b2a21efcc_at_1776688380_73/results
+results_web_link: http://splunk.zta.lab:8000/app/ansible_addon_for_splunk/@go?sid=scheduler__admin_YW5zaWJsZV9hZGRvbl9mb3Jfc3BsdW5r__RMD5c814727b2a21efcc_at_1776688380_73
+search_name: 'ZTA: SSH Brute Force Detected'
+sid: scheduler__admin_YW5zaWJsZV9hZGRvbl9mb3Jfc3BsdW5r__RMD5c814727b2a21efcc_at_1776688380_73
+
+----
 
 [TIP]
 .SIEM as sensor, EDA as actuator
 ====
-Splunk answers “**do we see attack-like behaviour?**” The webhook sends a **standardised signal** into **Event-Driven Ansible**, which turns that boolean into **approved automation** (run job template). The ZTA pattern here: **policy-driven orchestration**. Response playbooks are still **subject to automation controller** policies and RBAC, not anonymous shell scripts.
+Splunk answers "**do we see attack-like behaviour?**" The Ansible add-on is a **standardised signal** into **Event-Driven Ansible**, which turns that boolean into **approved automation** (run job template). This is the ZTA pattern of **policy-driven orchestration**: response playbooks are still **subject to automation controller** policies and RBAC, not anonymous shell scripts.
 ====
 
-== Exercise 5.3 — EDA rulebook
+== Exercise 5.3 — EDA rulebook activation
 
-* **Event-Driven Ansible controller (AAP 2.6):** The EDA project, Decision Environment, and credentials were created by the prerequisite setup. Create a **Rulebook Activation**: name `Splunk Brute Force Response`, rulebook `splunk-credential-revoke`, Decision Environment `ZTA Decision Environment`, credential **ZTA EDA Event Stream** (token-based webhook auth from Vault), restart policy `On failure`. Enable the activation — it listens on port 5000. See https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.6/html/using_automation_decisions/[Using automation decisions].
-* CLI example (no controller):
+The EDA project and Decision Environment were created in the prerequisite step and we have now configured the event stream but we need to allocate rulebooks to the event stream. Firstly, re-enable the forwarding of events on the event stream. Next,navigate to 'Rulebook Activations' and click 'Create rulebook activation'.
 
-[source,bash]
-----
-ansible-rulebook --rulebook extensions/eda/rulebooks/splunk-credential-revoke.yml \
-  -i inventory/hosts.ini --verbose
-----
+Create the rulebook:
+
+|===
+| Name | Splunk Events
+| Organization | Default
+| Project | ZTA Workshop EDA
+| Rulebook | splunk-credential-revoke.yml
+| Event streams | Splunk EDA (Click on the cog)
+| Credential | ZTA AAP Credential
+| Decision Environment | Default Decision Environment
+|===
+
+Click 'Create rulebook activation', this will create an activation and you will see it is in a 'Starting' status before moving to 'Running'. Running means the rulebook is actively listening to the events routed to it. 
 
 [TIP]
 .Closed loop
 ====
-EDA closes the loop between **observation** (logs/alerts) and **enforcement** (AAP). For Zero Trust maturity, measure **time-to-contain** and ensure playbooks are **idempotent** and **safe**. False positives will happen, which is why Section 5.8 tuning matters.
+EDA closes the loop between **observation** (logs/alerts) and **enforcement** (AAP). For Zero Trust maturity, measure **time-to-contain** and ensure playbooks are **idempotent** and **safe**—false positives will happen, which is why Section 5.8 tuning matters.
 ====
 
-== Exercise 5.4 — Baseline health
-
-[source,bash]
-----
-curl -s http://app.zta.lab:8081/health
-# On DB: confirm Vault dynamic role exists
-----
-
-[TIP]
-.Know “normal” before chaos
-====
-Baseline health and DB role presence give you **before** pictures. Incident response without baselines turns into guesswork. ZTA operations emphasize **continuous visibility** so automated actions are explainable to auditors (“we knew the app had active creds X; after revoke, creds were gone”).
-====
 
 == Exercise 5.5 — Simulate attack
 
-Launch **Simulate Brute Force** (or `ansible-playbook section5/playbooks/simulate-bruteforce.yml`).
+Time to simualte an attack and see how EDA can assist without manual intevention. First, navigate to 'Templates' and edit the 'Deploy Application Pipeline' workflow, in Extra variables add the following:
+'**vault_db_default_ttl: 30m**'. This will override the timeout for this example so we have enough time to observe. Launch the 'Deploy Application Pipeline' template now, and once complete click on the 'Global Telemetry Platform' tab to make sure the application is currently working.
+
+
+Now launch **Simulate Brute Force** template on AAP and navigate to the 'Rulebook Activations' to see if this attack triggers a response from Event-Driven Ansible. (You can observe on Splunk with the saved search)
+
 
 [TIP]
 .Safe simulation
 ====
-The playbook generates **failed auth** events **without** granting access. Useful training data for Splunk thresholds and for proving the **detection → response** chain without handing students real exploit tools.
+The playbook generates **failed auth** events **without** granting access—useful training data for Splunk thresholds and for proving the **detection → response** chain without handing students real exploit tools.
 ====
 
-== Exercise 5.6 — Observe chain
+We can see from the playbook the incident report:
+
+[source,bash]
+----
+msg: |
+  Incident response — credentials revoked
+  ========================================
+
+  Trigger: brute-force detected (Splunk)
+  Source:  splunk-eda
+  Target:  app.zta.lab
+
+  Actions taken:
+    Vault DB lease revoked
+    App role leases revoked (prefix)
+    App env file removed
+    ztaapp stopped
+    Incident log written to /var/log/zta-incident-*.log
+
+  Application has no DB access.
+  Restore with restore-app-credentials.yml after investigation.
+----
+
+== Observe chain
 
 * Splunk: alert fired, events visible.
 * EDA: event received, rule matched, `run_job_template` to revoke.
 * Automation controller: **Emergency: Revoke App Credentials** ran without manual launch.
 * App/CURL and PostgreSQL: creds gone / app isolated.
 
+You can ssh into the vault server and view this incident:
+
+[source,bash]
+----
+ls /var/log/zta-incident-*.log
+----
+
+
 [TIP]
 .Human-in-the-loop recovery
 ====
-Automation contained the incident. **Humans** still decide when to restore, matching many real SOCs (investigate, then re-issue least privilege). The **restore** template models **controlled re-onboarding** of credentials rather than silently rolling back security.
+Automation contained the incident; **humans** still decide when to restore—matching many real SOCs (investigate, then re-issue least privilege). The **restore** template models **controlled re-onboarding** of credentials rather than silently rolling back security.
 ====
 
 == Exercise 5.7 — Restore
@@ -137,15 +228,5 @@ Run **Restore App Credentials**; confirm `health` OK.
 [TIP]
 .Re-verify after recovery
 ====
-Post-restore checks prove **new** credentials and **clean** state, not the old lease. Think of it as **re-authorization** after an incident: you don't assume the previous session is still trustworthy.
+Post-restore checks prove **new** credentials and **clean** state—not the old lease. This mirrors **re-authorisation** after an incident: you do not assume the previous session is still trustworthy.
 ====
-
-== Validation checklist
-
-* [ ] Pre-attack healthy
-* [ ] Splunk alert + webhook + EDA + automation controller revoke job
-* [ ] Post-attack app isolated; restore succeeds
-
-== Extended exercises
-
-include::includes/exercise-5-8-splunk-tuning.adoc[]
