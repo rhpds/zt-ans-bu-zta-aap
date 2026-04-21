@@ -365,8 +365,7 @@ email: mail
 
 Click 'Save Authentication Method', then navigate to 'Mapping'.
 
-<PICTURE>
-
+image::s01p01.png
 
 
 
