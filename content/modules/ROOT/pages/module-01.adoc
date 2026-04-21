@@ -405,6 +405,9 @@ You are **not** "allowing" only these users to log in **unless** you add a separ
 
 Use **Mapping** on your LDAP authenticator and click on 'Create mapping' to create each of these maps in order:
 
+image::s01p01.png
+
+
 . **Organisation → Member (Always)** — ensures every LDAP-authenticated user becomes a member of the **Default** organisation. Without this map, users log in but see an empty platform with no resources.
 
 +
@@ -420,7 +423,7 @@ Use **Mapping** on your LDAP authenticator and click on 'Create mapping' to crea
 
 Click 'Save mapping' to view the details and create the next one. Click on 'Mapping' to get back to the mapping page. Continue with the rest of the mappings.
 
-<PICTURE>
+image::s01p03.png
 
 
 . **Organisation → Admin (Group)** — grants organisation admin to `zta-admins`:
@@ -438,6 +441,10 @@ Click 'Save mapping' to view the details and create the next one. Click on 'Mapp
 | Role | Organization Admin
 |===
 
+
+image::s01p04.png
+
+
 . **Superuser (Group)** — :
 
 +
@@ -452,7 +459,7 @@ Click 'Save mapping' to view the details and create the next one. Click on 'Mapp
 |===
 
 
-Below is an example for the Infrastructure team. Create this and continue with the remaining teams referenced below.
+Below is an example for the Infrastructure team. **Create this and continue with the remaining teams referenced below**.
 
 . **Team (Group)** — one map per team, each mapping an IdM group to an AAP team in **Default**:
 
@@ -484,6 +491,8 @@ Below is an example for the Infrastructure team. Create this and continue with t
 | Role | Team Member
 |===
 
+image::s01p05.png
+
 
 === Verify
 
@@ -491,13 +500,11 @@ Below is an example for the Infrastructure team. Create this and continue with t
 . Confirm the user lands on a populated dashboard.
 . Check that team membership is visible under **Access Management** → **Users** → `ztauser` → **Teams**.
 
-This workshop also has a CMDB as a source of truth, If you navigate to the Netbox tab and login with the credentials 'admin/netbox'. Navigate to 'Sites' -> 'Sites' and select 'ZTA Workshop Lab'. You will be able to view the devices and configurations of the VLANS.
+====
 
-<PICTURE>
+This workshop also has a CMDB as a source of truth, If you navigate to the Netbox tab and login with the credentials 'admin/netbox'. Navigate to 'Sites' -> 'Sites' and select 'ZTA Workshop Lab'. You will be able to view the devices and configurations of the VLANS. Clicking on VLANs we can see we have three VLANS configured on our network. App-tier, Data-tier and a Management VLAN. We will interact with this later in the workshop. 
 
-Clicking on VLANs we can see we have three VLANS configured on our network. App-tier, Data-tier and a Management VLAN. We will interact with this later in the workshop. 
-
-<PICUTRE>
+image::s01p06.png
 
 [TIP]
 .Source of truth and GitOps
