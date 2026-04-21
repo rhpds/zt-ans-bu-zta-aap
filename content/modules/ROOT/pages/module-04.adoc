@@ -191,7 +191,7 @@ _ZTA concept: *Verified identity + verified workload = authorized change*—both
 . Navigate to the Netbox tab and log in with the credentials admin/netbox.
 . Click on IPAM, select VLANs, and you should see VLAN 200 has been created.
 
-image::
+image::s04p01.png
 
 . As netadmin, add VLAN 2000 now to our switches and observe the outcome.
 
@@ -229,14 +229,6 @@ The playbook fetches the current SVID from the SPIRE agent and runs `openssl` to
 
 . Login to AAP as `netadmin`, navigate to 'Templates' and launch **Verify SPIFFE Trust**.
 . In the job output, find the **SVID Certificate Analysis** banner. Note:
-
-
-image::
-
-
-
-
-
 * The **SPIFFE ID** in the Subject Alternative Name (SAN) -- this is the workload's identity.
 * The **Not Before / Not After** timestamps -- the certificate's total lifetime.
 * The **Remaining** minutes -- how long until this SVID expires and SPIRE auto-rotates it.
@@ -253,7 +245,7 @@ The same job output shows a **side-by-side comparison** of two OPA queries under
 
 
 
-image::
+image::s04p02.png
 
 
 
@@ -265,7 +257,7 @@ image::
 . One with a rogue ID (`spiffe://zta.lab/workload/rogue-automation`).
 
 
-image::
+image::s04p03.png
 
 
 
