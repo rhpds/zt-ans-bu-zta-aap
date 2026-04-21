@@ -27,7 +27,7 @@ NOTE: Splunk can seem like it has disconnected, you just need to refresh.
 
 Navigate to 'Apps' -> 'Search and Reporting'. From here we can verify that Splunk is recieving data from our infrastructure. Run the following search:
 
-[source,bash]
+[source,role="execute"]
 ----
 index=zta_* | stats count by index, sourcetype | sort -count
 ----
@@ -48,7 +48,7 @@ Event Streams provide a way for us to create an authenticated endpoint for Webho
 
 Once created, there is a URL that is generated. This URL is the single endpoint for your webhooks. You can have multiple webhooks deliver to this endpoint and all payloads will be routed internally. Copy this generated URL as we wil need it to update Splunk.
 
-image::s05p01.png
+image::s05p01.png[Event stream configuration showing generated webhook URL endpoint,link=self,window=blank]
 
 
 Go back to your Splunk instance, and navigate to 'Apps' -> Event-Driven Ansible Add-on for Splunk. Click 'Add' and create the following integration:
@@ -75,9 +75,9 @@ This lab **revokes secrets** in Vault (and stops reliance on DB access) instead 
 
 == Exercise 5.2 — Splunk saved search / alert
 
-In AAP we can configure our Event Stream to not forward the event, this is great if you want to view the payload. Navigate back to the event stream, click on Splunk EDA and disable the toggle on the right that forwards events. 
+In AAP we can configure our Event Stream to not forward the event, this is great if you want to view the payload. Navigate back to the event stream, click on Splunk EDA and disable the toggle on the right that forwards events.
 
-image::s05p02.png
+image::s05p02.png[Event stream settings showing toggle to disable event forwarding for testing,link=self,window=blank]
 
 Now we can trigger a simulated brute foce if you run the template 'Simulate Brute Force'. Launch this template and then navigate to Splunk.
 
@@ -179,7 +179,7 @@ The playbook generates **failed auth** events **without** granting access—usef
 
 We can see from the playbook the incident report:
 
-[source,bash]
+[source,role="execute"]
 ----
 msg: |
   Incident response — credentials revoked
@@ -209,7 +209,7 @@ msg: |
 
 You can ssh into the vault server and view this incident:
 
-[source,bash]
+[source,role="execute"]
 ----
 ls /var/log/zta-incident-*.log
 ----

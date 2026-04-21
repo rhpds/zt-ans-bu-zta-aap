@@ -16,7 +16,7 @@ Sections 1–5 complete; console/OOB available; lockdown playbooks not yet appli
 
 == Exercise 6.1 — Firewall lockdown (layer 1)
 
-[source,bash]
+[source,role="execute"]
 ----
 ansible-playbook -i inventory/hosts.ini setup/ssh_lockdown/lockdown-firewall.yml
 ----
@@ -31,7 +31,7 @@ From workstation: SSH to app should fail; from `control`, SSH to app should succ
 
 == Exercise 6.2 — IdM HBAC (layer 2)
 
-[source,bash]
+[source,role="execute"]
 ----
 ansible-playbook -i inventory/hosts.ini setup/ssh_lockdown/lockdown-idm-hbac.yml
 ----
@@ -68,7 +68,7 @@ Break-glass is **logged**, **limited**, and (in mature environments) **time-boun
 
 == Exercise 6.5 — Vault policy lockdown (layer 3)
 
-[source,bash]
+[source,role="execute"]
 ----
 ansible-playbook -i inventory/hosts.ini setup/ssh_lockdown/lockdown-vault-policies.yml
 ----
@@ -83,7 +83,7 @@ After lockdown, **humans troubleshoot** with read-only Vault access while **only
 
 == Exercise 6.6 — Splunk bypass detection (layer 4)
 
-[source,bash]
+[source,role="execute"]
 ----
 ansible-playbook -i inventory/hosts.ini setup/ssh_lockdown/lockdown-splunk-bypass.yml
 ----

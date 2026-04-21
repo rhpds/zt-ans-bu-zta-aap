@@ -47,24 +47,24 @@ Click 'Create workflow job template'. This takes you to the Workflow Visualizer.
 
 Click the 'Add step' button to begin. On the new menu on the right, select 'Job Template' for Node type, then use the dropdown list to select the 'Check DB policy' template. Click Next, then Finish.
 
-image::s02p01.png
+image::s02p01.png[Workflow visualizer showing Check DB policy template as first step,link=self,window=blank]
 
 This template executes first and checks with OPA to ensure the job runs in policy. Next, add to the workflow. Right click on the kebab menu on the template you just added. <> PICTURE
 
-Select 'add Step and link', choose the 'Create DB Credential' template this time, and under Status select 'Run on success'. This ensures the job only runs if the previous step was successful. Click Next and Finish. 
+Select 'add Step and link', choose the 'Create DB Credential' template this time, and under Status select 'Run on success'. This ensures the job only runs if the previous step was successful. Click Next and Finish.
 
-image::s02p02.png
+image::s02p02.png[Workflow step configuration showing Create DB Credential linked on success,link=self,window=blank]
 
 
 Add the next two templates the same way: 'Configure DB Access list' and 'Deploy Application'.
 
 Your workflow should look like this:
 
-image::s02p03.png
+image::s02p03.png[Complete deployment workflow showing four sequential steps with success links,link=self,window=blank]
 
 Click 'Save' and then on the 'X' on the top right of the pane, this takes you to the template details and on the template details select 'Team Access'. Click 'Assign Teams', select all the teams except the 'Readonly' team and click next. Allocate roles for the teams by selecting 'WorkflowJobTemplate Approve' and 'WorkflowJobTemplate Execute', then click next followed by review and finish.
 
-image::s02p04.png
+image::s02p04.png[Team access configuration showing role assignments for workflow template,link=self,window=blank]
 
 
 The roles are now allocated. You can log out of the platform. 
@@ -92,7 +92,7 @@ The roles are now allocated. You can log out of the platform.
 . Search for neteng in active users. Select the account and click on User Groups. They're part of the 'ipausers' group so they have access but not much else.
 . Click 'Add' to add them to the Infrastructure group. Search for Infrastructure and click the '>' to allocate the group to the account, then click 'Add'.
 
-image::
+image::idm-user-groups.png[IdM interface showing user group assignment for neteng user,link=self,window=blank]
 
 
 
@@ -107,7 +107,8 @@ When you changed `neteng`'s group membership in IdM, AAP picked up that change o
 Navigate to Templates and execute the 'Deploy Application Pipeline' workflow by clicking the rocket.
 
 The job failed. Click the first template to review.
-image::
+
+image::opa-policy-denied.png[Workflow job failure showing OPA policy denial for neteng user,link=self,window=blank]
 
 OPA stepped in and **DENIED** the job. The workflow stops and no further actions can take place.
 
@@ -151,7 +152,7 @@ ok: [central] => {
 Go back to the workflow. It should have completed successfully. Navigate to the 'Terminal' tab and from central check the application:
 
 
-[source,bash]
+[source,role="execute"]
 ----
 curl -s http://app.zta.lab:8081/health | python3 -m json.tool
 ----
@@ -184,13 +185,13 @@ ok: [ceos2] => {
 
 You can verify this on the switch. Open the 'Terminal' tab and ssh into the switch. We will see the network policy that has been applied. 
 
-[source,bash]
+[source,role="execute"]
 ----
 [rhel@central ~]$ ssh -p 2002 admin@central.zta.lab
 ----
 NOTE: Switch credentials: admin/admin
 
-[source,bash]
+[source,role="execute"]
 ----
 ceos2#show ip access-lists ZTA-APP-TO-DB
 IP Access List ZTA-APP-TO-DB
@@ -201,7 +202,7 @@ IP Access List ZTA-APP-TO-DB
 
 Exit the switch, and ssh into the DB.
 
-[source,bash]
+[source,role="execute"]
 ----
 [rhel@central ~]$ ssh -p 2022 rhel@192.168.1.11
 ----
@@ -210,7 +211,7 @@ NOTE: Authentication details admin/ansible123!
 
 View the dynamic usernames that have been created:
 
-[source,bash]
+[source,role="execute"]
 ----
 [rhel@db ~]$ sudo -u postgres psql -c "\du" | grep v-userpass
  v-userpass-ztaapp-s-DWnNLePRQqnufQmAhJ47-1776246021 | Password valid until 2026-04-15 09:45:26+00               
@@ -226,7 +227,7 @@ Even with valid DB credentials, **network policy** still limits *where* connecti
 After 5 minutes have passed, check the status of the application. Navigate back to 'Terminal' and run the same curl. 
 
 
-[source,bash]
+[source,role="execute"]
 ----
 curl -s http://app.zta.lab:8081/health | python3 -m json.tool
 

@@ -163,7 +163,7 @@ This job cannot be executed due to a policy violation or error. See the followin
 
 Now, login as user 'neteng' and run the template. 
 
-[source,console]
+[source,role="execute"]
 ----
 TASK [Enforce OPA decision] ****************************************************
 fatal: [central]: FAILED! => {
@@ -191,11 +191,11 @@ _ZTA concept: *Verified identity + verified workload = authorized change*—both
 . Navigate to the Netbox tab and log in with the credentials admin/netbox.
 . Click on IPAM, select VLANs, and you should see VLAN 200 has been created.
 
-image::s04p01.png
+image::s04p01.png[NetBox IPAM interface showing VLAN 200 successfully created,link=self,window=blank]
 
 . As netadmin, add VLAN 2000 now to our switches and observe the outcome.
 
-[source,console]
+[source,role="execute"]
 ----
 
 TASK [Enforce OPA decision] ****************************************************
@@ -241,11 +241,9 @@ The same job output shows a **side-by-side comparison** of two OPA queries under
 
 
 
-. The legitimate SPIFFE ID (`spiffe://zta.lab/workload/network-automation`) 
+. The legitimate SPIFFE ID (`spiffe://zta.lab/workload/network-automation`)
 
-
-
-image::s04p02.png
+image::s04p02.png[OPA policy evaluation showing ALLOW decision for legitimate network-automation workload,link=self,window=blank]
 
 
 
@@ -256,8 +254,7 @@ image::s04p02.png
 
 . One with a rogue ID (`spiffe://zta.lab/workload/rogue-automation`).
 
-
-image::s04p03.png
+image::s04p03.png[OPA policy evaluation showing DENY decision for rogue-automation workload identity,link=self,window=blank]
 
 
 

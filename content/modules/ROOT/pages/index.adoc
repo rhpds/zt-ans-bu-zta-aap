@@ -94,7 +94,7 @@ Here's how they map to the tools you'll use:
 
 Here's how all of that fits together:
 
-image::
+image::zta-architecture-diagram.png[Zero Trust Architecture diagram showing Policy Decision Point OPA, Policy Enforcement Point AAP, and Policy Information Points including IdM, NetBox, Vault, and SIEM,link=self,window=blank]
 
 == Why Ansible Automation Platform?
 

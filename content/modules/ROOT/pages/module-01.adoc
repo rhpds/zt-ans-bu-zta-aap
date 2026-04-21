@@ -118,7 +118,7 @@ Machine and Arista passwords are **not** stored in AAP: the controller holds **V
 Navigate to the Terminal tab. This terminal is directly connected to a machine called central. You can ssh into other machines from here. Let's connect to our vault machine.
 
 
-[source,console]
+[source,role="execute"]
 ----
 [rhel@central ~]$ ssh vault
 The authenticity of host 'vault (<no hostip for proxy command>)' can't be established.
@@ -132,7 +132,7 @@ rhel@vault's password:
 Authenticate with the rhel user's password: ansible123!
 Next, view the vault details. You'll need to unlock the vault and login. 
 
-[source,console]
+[source,role="execute"]
 ----
 export VAULT_ADDR=http://vault.zta.lab:8200
 vault login -method=userpass username=admin password=ansible123!
@@ -142,7 +142,7 @@ vault kv get secret/network/arista
 vault kv get secret/db/admin
 ----
 
-[source,console]
+[source,role="execute"]
 ----
 Key                    Value
 ---                    -----
@@ -249,7 +249,7 @@ Edit the 'ZTA Vault Credential', you will see there is a 'Test' button next to t
 
 This allows us to test the lookup provided we give the correct details. These are the details we recieved earlier in the exercise.
 
-[source,shell]
+[source,role="execute"]
 ----
 ====== Secret Path ======
 secret/data/machine/rhel
@@ -365,7 +365,7 @@ email: mail
 
 Click 'Save Authentication Method', then navigate to 'Mapping'.
 
-image::s01p01.png
+image::s01p01.png[Authentication method mapping configuration interface,link=self,window=blank]
 
 
 
@@ -405,7 +405,7 @@ You are **not** "allowing" only these users to log in **unless** you add a separ
 
 Use **Mapping** on your LDAP authenticator and click on 'Create mapping' to create each of these maps in order:
 
-image::s01p01.png
+image::s01p01.png[LDAP authenticator mapping interface showing create mapping option,link=self,window=blank]
 
 
 . **Organisation → Member (Always)** — ensures every LDAP-authenticated user becomes a member of the **Default** organisation. Without this map, users log in but see an empty platform with no resources.
@@ -423,7 +423,7 @@ image::s01p01.png
 
 Click 'Save mapping' to view the details and create the next one. Click on 'Mapping' to get back to the mapping page. Continue with the rest of the mappings.
 
-image::s01p03.png
+image::s01p03.png[Mapping details screen showing completed organization member mapping,link=self,window=blank]
 
 
 . **Organisation → Admin (Group)** — grants organisation admin to `zta-admins`:
@@ -442,7 +442,7 @@ image::s01p03.png
 |===
 
 
-image::s01p04.png
+image::s01p04.png[Organization admin mapping configuration for zta-admins group,link=self,window=blank]
 
 
 . **Superuser (Group)** — :
@@ -491,7 +491,7 @@ Below is an example for the Infrastructure team. **Create this and continue with
 | Role | Team Member
 |===
 
-image::s01p05.png
+image::s01p05.png[Team mapping configuration showing Infrastructure team mapping to IdM group,link=self,window=blank]
 
 
 === Verify
@@ -502,9 +502,9 @@ image::s01p05.png
 
 ====
 
-This workshop also has a CMDB as a source of truth, If you navigate to the Netbox tab and login with the credentials 'admin/netbox'. Navigate to 'Sites' -> 'Sites' and select 'ZTA Workshop Lab'. You will be able to view the devices and configurations of the VLANS. Clicking on VLANs we can see we have three VLANS configured on our network. App-tier, Data-tier and a Management VLAN. We will interact with this later in the workshop. 
+This workshop also has a CMDB as a source of truth, If you navigate to the Netbox tab and login with the credentials 'admin/netbox'. Navigate to 'Sites' -> 'Sites' and select 'ZTA Workshop Lab'. You will be able to view the devices and configurations of the VLANS. Clicking on VLANs we can see we have three VLANS configured on our network. App-tier, Data-tier and a Management VLAN. We will interact with this later in the workshop.
 
-image::s01p06.png
+image::s01p06.png[NetBox VLAN configuration showing App-tier Data-tier and Management VLANs,link=self,window=blank]
 
 [TIP]
 .Source of truth and GitOps
@@ -572,13 +572,13 @@ Navigate to the 'Terminal' tab and make sure you are on the vault machine still,
 
 This will provide the public key:
 
-[source,bash]
+[source,role="execute"]
 ----
 vault read ssh/config/ca
 ----
 
 This will provide the details of the signer role:
-[source,bash]
+[source,role="execute"]
 ----
 vault read ssh/roles/ssh-signer
 ----
