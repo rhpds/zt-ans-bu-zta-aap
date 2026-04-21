@@ -48,7 +48,7 @@ Event Streams provide a way for us to create an authenticated endpoint for Webho
 
 Once created, there is a URL that is generated. This URL is the single endpoint for your webhooks. You can have multiple webhooks deliver to this endpoint and all payloads will be routed internally. Copy this generated URL as we wil need it to update Splunk.
 
-image:: s05p01.png
+image::s05p01.png
 
 
 Go back to your Splunk instance, and navigate to 'Apps' -> Event-Driven Ansible Add-on for Splunk. Click 'Add' and create the following integration:
@@ -77,7 +77,7 @@ This lab **revokes secrets** in Vault (and stops reliance on DB access) instead 
 
 In AAP we can configure our Event Stream to not forward the event, this is great if you want to view the payload. Navigate back to the event stream, click on Splunk EDA and disable the toggle on the right that forwards events. 
 
-image:: s05p02.png
+image::s05p02.png
 
 Now we can trigger a simulated brute foce if you run the template 'Simulate Brute Force'. Launch this template and then navigate to Splunk.
 
