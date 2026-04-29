@@ -101,15 +101,17 @@ Until AAP is wired to the same **identity, policy, secrets, and inventory truth*
 
 == Exercise 1.1 — Verify AAP credentials (pre-configured, Vault-sourced)
 
+[%collapsible]
+====
 === Goal
 
 To save time, workshop credentials have been created already. You'll **confirm** Vault KV data and controller objects match the requirements for this lab.
 
 [TIP]
 .Zero Trust: secrets on the platform
-====
+=====
 Machine and Arista passwords are **not** stored in AAP: the controller holds **Vault paths** and resolves them at job time. Only the bootstrap Vault lookup (and NetBox token) behave like classic "stored" secrets in the platform database. In production, tighten that with AppRole, TLS, and policy.
-====
+=====
 
 === Step 1 — Confirm Vault paths
 
@@ -216,13 +218,13 @@ username    postgres
 
 [NOTE]
 .Why verify Vault before anything else
-====
+=====
 In later sections, AAP will request **short-lived database credentials** and **signed SSH certificates** from Vault at job time. Before relying on that chain, confirm it's wired correctly. This is the ZTA principle of **never trust, always verify** applied to your own infrastructure.
 
 AAP credential objects store **Vault paths**, not passwords. The actual secrets live in Vault and are resolved at runtime. That indirection is deliberate: AAP is the *Policy Enforcement Point* that consumes secrets, not a password store. If a credential is compromised, you rotate it in **one place** (Vault) and every job template picks up the change automatically.
 
 By inspecting both sides—Vault KV data *and* AAP lookup metadata—you're practicing the **audit discipline** Zero Trust demands: for any credential you should be able to answer *where it comes from*, *who can read it*, and *what its scope is*.
-====
+=====
 
 
 === Step 2 — Confirm credentials in the controller
@@ -287,11 +289,14 @@ Click 'Run' to see if the lookup is working. You can now attempt with the other 
 | ZTA NetBox | NetBox | Token in AAP
 | ZTA Vault SSH | Vault Signed SSH | AppRole + `ssh-signer`
 |===
+====
 
 
 [[exercise-1-2-idm-ldap-authentication-methods]]
 == Exercise 1.2 — IdM LDAP (Authentication Methods UI)
 
+[%collapsible]
+====
 === Steps — Create LDAP authentication
 
 . On the platform as **admin**. Navigate to  **Access Management** → **Authentication Methods** → **Create authentication**.
@@ -395,9 +400,9 @@ These are the IdM groups the workshop uses in **Group** triggers (`dc=zta,dc=lab
 
 [NOTE]
 .Login vs role grants
-====
+=====
 You are **not** "allowing" only these users to log in **unless** you add a separate **Allow** map that lists those DNs. **Organization**, **Team**, **Superuser**, and similar maps mean: *if* the authenticated user is in that LDAP group, *then* grant the mapped organisation role, team membership, or superuser flag. Everyone else can still log in if LDAP authentication itself permits them; they simply will not receive those grants without a matching map.
-====
+=====
 
 ==== Required Mapping
 
@@ -497,7 +502,6 @@ image::s01p05.png[Team mapping configuration showing Infrastructure team mapping
 . In the AAP tab, select the 'admin' user in the top right and sign out. Log in as **`ztauser`** / `ansible123!`.
 . Confirm the user lands on a populated dashboard.
 . Check that team membership is visible under **Access Management** → **Users** → `ztauser` → **Teams**.
-
 ====
 
 This workshop also has a CMDB as a source of truth, If you navigate to the Netbox tab and login with the credentials 'admin/netbox'. Navigate to 'Sites' -> 'Sites' and select 'ZTA Workshop Lab'. You will be able to view the devices and configurations of the VLANS. Clicking on VLANs we can see we have three VLANS configured on our network. App-tier, Data-tier and a Management VLAN. We will interact with this later in the workshop.
@@ -513,26 +517,31 @@ image::s01p06.png[NetBox VLAN configuration showing App-tier Data-tier and Manag
 
 == Exercise 1.3 — Verify ZTA services
 
+[%collapsible]
+====
 [TIP]
 .Never trust, always verify
-====
+=====
 **Service checks** are the operational face of "never trust, always verify": you do not assume IdM or OPA is up because yesterday it was. For the workshop, this mirrors **continuous diagnostics** on which policy decisions and secret issuance depend.
-====
+=====
 
 
 Navigate back to AAP and to Automation Execution -> Templates on the automation platform. There are a number of templates available.
 Run **Verify ZTA Services** by clicking on the rocket on the right of the template.
 
 Inspect the output. At the bottom there's a summary of the checks. If successful, you can proceed.
+====
 
 
 == Exercise 1.4 — Test Vault integration
 
+[%collapsible]
+====
 [TIP]
 .Short-lived database identities
-====
+=====
 Dynamic DB users with a **TTL** limit how long a leaked credential is useful—core **assume breach** hygiene. Vault **revokes** the lease so the database role disappears without a human running `DROP USER`. That's how **least privilege** becomes **time-bound privilege**.
-====
+=====
 
 Next, execute **Test Vault Integration**. Observe short-lived PostgreSQL users (unique name per run, TTL, revoke at end).
 
@@ -550,15 +559,18 @@ ok: [vault] => {
 ]
 }
 ----
+====
 
 
 == Exercise 1.5 — Test Vault SSH certificates
 
+[%collapsible]
+====
 [TIP]
 .Cryptographic proof of permission to log in
-====
+=====
 The certificate encodes **who may act as which principal** and **for how long**. Hosts only need to trust the CA once; they don't need network reachability to Vault at login time. That separation is useful in segmented networks and matches the ZTA idea that **access is explicitly granted and expires**.
-====
+=====
 
 In this workshop we will use a SSH CA key pair to connect to systems. The CA has been deployed with Ansible to all hosts in this environment already. When AAP needs to run a template, instead of using a password or static key it will ask vault  "sign this public key for principal rhel please" - Vault will check the ssh-signer role to check if rhel is an allowed principal and if the TTL is valid.
 
@@ -586,21 +598,25 @@ Navigate back to AAP and run **Test Vault SSH Certificates**. Observe CA-signed 
 
 [TIP]
 .Vault SSH CA vs static keys
-====
+=====
 **Signed SSH certificates** are the Zero Trust answer to shared static keys.
+=====
 ====
 
 == Exercise 1.6 — Test OPA policy
 
+[%collapsible]
+====
 [TIP]
 .Deny by default (PDP)
-====
+=====
 OPA returns **allow** only when Rego rules fire; everything else is **implicit deny**. **IdM groups** supply *role-like* attributes the PDP can use, but unlike a static RBAC matrix in one app, the same policy can be **versioned, tested, and shared** across AAP and other PEPs. You're seeing **central policy** backing **distributed enforcement**.
-====
+=====
 
 Lastly, run **Test OPA Policy**. Expect allow/deny scenarios for patching, VLAN, and DB access per group membership.
 
 [source]
+----
 TASK [OPA policy test summary] *************************************************
 ok: [central] => {
 "msg": [
@@ -612,6 +628,7 @@ ok: [central] => {
 "Test 5 — DB (app-deployer): ALLOW",
 "Zero Trust: deny-by-default, policy-driven access."
 ]
+----
 
-If all tests were successful, you can move on to the next exercise. 
-
+If all tests were successful, you can move on to the next exercise.
+====
