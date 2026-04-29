@@ -110,14 +110,17 @@ It acts as the *Policy Enforcement Point* — the single place where policy deci
 
 Here's what that gives you:
 
-=== One platform for everything
-
+.One platform for everything
+[%collapsible]
+====
 AAP manages RHEL hosts, Arista switches, PostgreSQL databases, and containerised apps from the same interface.
 A Zero Trust approach that only covers your servers but ignores the network or the application layer has blind spots.
 AAP eliminates those by bringing every layer under the same policy-governed workflow.
+====
 
-=== Policy checks before anything runs
-
+.Policy checks before anything runs
+[%collapsible]
+====
 AAP 2.6 talks directly to OPA through **Policy as Code**.
 Before a job template starts, the controller sends the full context — template name, who's launching it, which teams they belong to, what inventory it targets — to OPA for a decision.
 If OPA says no, the job never starts. Not "it fails partway through" — it never even begins.
@@ -126,9 +129,11 @@ This gives you two enforcement layers:
 
 * **Outer ring (platform):** AAP checks with OPA at launch time. Wrong user or wrong team? The job is blocked before a single task runs.
 * **Inner ring (playbook):** Individual tasks can query OPA mid-run for more specific checks — like validating a SPIFFE identity or confirming a VLAN ID is in the allowed range.
+====
 
-=== No passwords sitting on disk
-
+.No passwords sitting on disk
+[%collapsible]
+====
 AAP pulls machine and network credentials from **Vault at job time** through credential lookups.
 The AAP database never holds the actual passwords.
 If the controller were compromised, an attacker would find Vault paths — not usable credentials.
@@ -136,25 +141,32 @@ If the controller were compromised, an attacker would find Vault paths — not u
 For SSH, Vault acts as a **certificate authority**.
 Instead of distributing static keys that sit on disk and go stale, Vault signs short-lived certificates on demand.
 Hosts trust the Vault CA — no more maintaining a growing, unaudited list of authorised public keys.
+====
 
-=== People get only what they should
-
+.People get only what they should
+[%collapsible]
+====
 AAP authenticates users through **IdM LDAP**.
 Their group memberships get mapped to AAP teams, and those teams determine which job templates they can see and launch.
 The same playbook can sit in the catalog for everyone, but only the right team can run it — enforced by AAP RBAC and OPA policy together.
+====
 
-=== Automated responses in seconds
-
+.Automated responses in seconds
+[%collapsible]
+====
 **Event-Driven Ansible (EDA)** watches for webhooks from Splunk or Wazuh.
 When a security event fires — say, a brute-force attack — EDA matches it against a rulebook and kicks off a remediation job on the controller.
 Credentials get revoked, hosts get isolated, or alerts get escalated — in seconds, not the minutes or hours of a manual incident response.
+====
 
-=== A complete audit trail
-
+.A complete audit trail
+[%collapsible]
+====
 Every job run records who launched it, which policy allowed it, what credentials were issued, and what changed.
 Playbooks live in version control in Gitea.
 That gives your security team a full chain of evidence from *intent* (the code commit) through *authorisation* (the OPA decision) to *execution* (the job output).
 That's the kind of audit trail Zero Trust demands.
+====
 
 
 [TIP]
