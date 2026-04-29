@@ -298,7 +298,7 @@ Click 'Run' to see if the lookup is working. You can now attempt with the other 
 [%collapsible]
 ====
 
-=== Create LDAP authentication
+Create LDAP authentication:
 
 . On the platform as **admin**. Navigate to  **Access Management** → **Authentication Methods** → **Create authentication**.
 . Set **Authentication type** to **LDAP**.
