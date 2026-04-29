@@ -103,7 +103,7 @@ Until AAP is wired to the same **identity, policy, secrets, and inventory truth*
 
 [%collapsible]
 ====
-=== Goal
+
 
 To save time, workshop credentials have been created already. You'll **confirm** Vault KV data and controller objects match the requirements for this lab.
 
@@ -297,7 +297,8 @@ Click 'Run' to see if the lookup is working. You can now attempt with the other 
 
 [%collapsible]
 ====
-=== Steps — Create LDAP authentication
+
+=== Create LDAP authentication
 
 . On the platform as **admin**. Navigate to  **Access Management** → **Authentication Methods** → **Create authentication**.
 . Set **Authentication type** to **LDAP**.
