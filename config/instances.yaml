@@ -1,7 +1,7 @@
 ---
 containers:
   - name: gitea
-    image: gitea/gitea:1.16.8-rootless
+    image: quay.io/rhpds/summit-2026-gitea:1.16.8-rootless
     ports:
       - name: gitea
         containerPort: 3000
