@@ -31,6 +31,9 @@ That's exactly what you'll build in this workshop.
 Zero Trust isn't a product you can buy — it's a set of design principles.
 Over the next seven sections, you'll see each one in action.
 
+.Click to expand the full principles table
+[%collapsible]
+====
 [cols="2,3,4",options="header"]
 |===
 | Principle | In plain terms | You'll see this when...
@@ -68,6 +71,7 @@ Over the next seven sections, you'll see each one in action.
 | SPIFFE/SPIRE issues identity documents (SVIDs) to the automation platform. OPA checks the SVID before allowing any network changes — making sure the request comes from AAP, not something pretending to be AAP.
 
 |===
+====
 
 == The NIST model, mapped to this lab
 
