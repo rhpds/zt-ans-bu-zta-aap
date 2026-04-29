@@ -116,7 +116,7 @@ if [ -d /tmp/zta-workshop-aap ]; then
     echo "SKIP: /tmp/zta-workshop-aap already exists"
 else
     retry "Clone ZTA workshop repo (zta-container branch)" \
-        git clone -b zta-container https://github.com/nmartins0611/zta-workshop-aap.git /tmp/zta-workshop-aap
+        git clone  https://github.com/rhpds/summit-2026-nmartins0611-zta-workshop-aap.git /tmp/zta-workshop-aap
 fi
 
 ###############################################################################
