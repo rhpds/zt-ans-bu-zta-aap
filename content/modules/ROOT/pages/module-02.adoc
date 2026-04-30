@@ -187,7 +187,7 @@ You can verify this on the switch. Open the 'Terminal' tab and ssh into the swit
 
 [source,role="execute"]
 ----
-[rhel@central ~]$ ssh -p 2002 admin@central.zta.lab
+ssh -p 2002 admin@central.zta.lab
 ----
 NOTE: Switch credentials: admin/admin
 
@@ -204,7 +204,7 @@ Exit the switch, and ssh into the DB.
 
 [source,role="execute"]
 ----
-[rhel@central ~]$ ssh -p 2022 rhel@192.168.1.11
+ssh -p 2022 rhel@192.168.1.11
 ----
 
 NOTE: Authentication details admin/ansible123!
