@@ -92,7 +92,7 @@ The roles are now allocated. You can log out of the platform.
 . Search for neteng in active users. Select the account and click on User Groups. They're part of the 'ipausers' group so they have access but not much else.
 . Click 'Add' to add them to the Infrastructure group. Search for Infrastructure and click the '>' to allocate the group to the account, then click 'Add'.
 
-image::idm-user-groups.png[IdM interface showing user group assignment for neteng user,link=self,window=blank]
+image::s02p05.png[IdM interface showing user group assignment for neteng user,link=self,window=blank]
 
 
 
@@ -108,7 +108,7 @@ Navigate to Templates and execute the 'Deploy Application Pipeline' workflow by 
 
 The job failed. Click the first template to review.
 
-image::opa-policy-denied.png[Workflow job failure showing OPA policy denial for neteng user,link=self,window=blank]
+image::s02p06.png[Workflow job failure showing OPA policy denial for neteng user,link=self,window=blank]
 
 OPA stepped in and **DENIED** the job. The workflow stops and no further actions can take place.
 
