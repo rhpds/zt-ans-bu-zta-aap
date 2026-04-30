@@ -59,7 +59,7 @@ NOTE: We are using an IP Address here due to a dns bug with the containers.
 
 Next, configure the Organization to use policy enforcement. Navigate to 'Access Management' -> 'Organizations'. Click on 'Default' then click 'Edit organization'. Under Policy enforcement enter: **aap/gateway/decision**. Click Next and Finish.
 
-image::organization-policy-enforcement.png[Organization settings showing policy enforcement configuration with aap/gateway/decision endpoint,link=self,window=blank]
+image::s03p01.png[Organization settings showing policy enforcement configuration with aap/gateway/decision endpoint,link=self,window=blank]
 
 
 Log in as appdev and navigate to Templates.
