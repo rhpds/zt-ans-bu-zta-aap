@@ -164,7 +164,7 @@ EDA closes the loop between **observation** (logs/alerts) and **enforcement** (A
 
 == Exercise 5.5 — Simulate attack
 
-Time to simulate an attack and see how EDA can assist without manual intevention. First, navigate to 'Templates' and edit the 'Deploy Application Pipeline' workflow, in Extra variables add the following:
+Time to simulate an attack login as the appdev user and see how EDA can assist without manual intevention. First, navigate to 'Templates' and edit the 'Deploy Application Pipeline' workflow, in Extra variables add the following:
 '**vault_db_default_ttl: 30m**'. This will override the timeout for this example so we have enough time to observe. Launch the 'Deploy Application Pipeline' template now, and once complete click on the 'Global Telemetry Platform' tab to make sure the application is currently working.
 
 
