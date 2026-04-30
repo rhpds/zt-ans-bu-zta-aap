@@ -373,9 +373,9 @@ image::s01p01.png[Authentication method mapping configuration interface,link=sel
 
 
 
-=== Organisation and team mapping
+ **Organisation and team mapping**
 
-==== Why authenticator mapping matters for Zero Trust
+**Why authenticator mapping matters for Zero Trust**
 
 In a Zero Trust model, **authentication alone is insufficient**. Proving identity (LDAP bind succeeds) doesn't grant any permissions—that's by design. Authenticator maps translate a verified external identity into scoped, least-privilege access within AAP:
 
@@ -384,7 +384,7 @@ In a Zero Trust model, **authentication alone is insufficient**. Proving identit
 * **Least privilege by construction:** Each map grants the minimum role needed. Organization members can view; team members can execute their team's templates; only `zta-admins` receive org-admin or superuser. There's no "everyone gets everything" default.
 * **Auditability:** Every job execution traces back through the map chain: IdM user → LDAP group → AAP team → template permission → job run. This is the audit trail Zero Trust demands.
 
-==== Which groups you reference (by DN)
+**Which groups you reference (by DN)**
 
 These are the IdM groups the workshop uses in **Group** triggers (`dc=zta,dc=lab`). Use the **full DN** in the **Groups** list for each map (one DN per entry).
 
@@ -405,7 +405,7 @@ These are the IdM groups the workshop uses in **Group** triggers (`dc=zta,dc=lab
 You are **not** "allowing" only these users to log in **unless** you add a separate **Allow** map that lists those DNs. **Organization**, **Team**, **Superuser**, and similar maps mean: *if* the authenticated user is in that LDAP group, *then* grant the mapped organisation role, team membership, or superuser flag. Everyone else can still log in if LDAP authentication itself permits them; they simply will not receive those grants without a matching map.
 =====
 
-==== Required Mapping
+**Required Mapping**
 
 Use **Mapping** on your LDAP authenticator and click on 'Create mapping' to create each of these maps in order:
 
@@ -498,7 +498,7 @@ Below is an example for the Infrastructure team. **Create this and continue with
 image::s01p05.png[Team mapping configuration showing Infrastructure team mapping to IdM group,link=self,window=blank]
 
 
-=== Verify
+**Verify**
 
 . In the AAP tab, select the 'admin' user in the top right and sign out. Log in as **`ztauser`** / `ansible123!`.
 . Confirm the user lands on a populated dashboard.
