@@ -110,7 +110,7 @@ if [ -d /tmp/netbox-docker ]; then
 else
     retry "Clone netbox-docker repo" \
         git clone --depth=1 -b 3.3.0 \
-        https://github.com/netbox-community/netbox-docker.git /tmp/netbox-docker
+        https://github.com/nmartins0611/netbox-docker.git /tmp/netbox-docker
 fi
 
 ###############################################################################
