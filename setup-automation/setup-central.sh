@@ -106,21 +106,24 @@ run_if_needed "Install paramiko" \
      pip3 install paramiko --user
 
 ###############################################################################
-# 5. Download IPA RPMs for containers
+# 5. Install IPA client into containers via podman mount
 ###############################################################################
 
-if [ ! -d /tmp/ipa-rpms ]; then
-    mkdir -p /tmp/ipa-rpms
-    dnf download --resolve --destdir /tmp/ipa-rpms ipa-client
-fi
+subscription-manager repos --enable rhel-9-for-x86_64-appstream-rpms 2>/dev/null || true
 
 for c in app db; do
     if podman container exists "$c" 2>/dev/null; then
         if podman exec "$c" rpm -q ipa-client &>/dev/null; then
             echo "SKIP: ipa-client already installed in container '$c'"
         else
-            podman cp /tmp/ipa-rpms "$c":/tmp/ipa-rpms
-            podman exec "$c" bash -c 'dnf install -y /tmp/ipa-rpms/*.rpm && rm -rf /tmp/ipa-rpms'
+            echo "Installing ipa-client into '${c}' via podman mount"
+            podman stop "$c" 2>/dev/null || true
+            mnt=$(podman mount "$c")
+            dnf install --installroot="$mnt" --releasever=9 -y ipa-client
+            chroot "$mnt" rm -rf /var/log/dnf /var/cache/dnf
+            podman umount "$c"
+            podman start "$c"
+            echo "ipa-client installed in '${c}'"
         fi
     else
         echo "SKIP: Container '$c' does not exist"
@@ -211,9 +214,9 @@ ansible-playbook -i inventory/hosts.ini setup/deploy-central.yml --skip-tags key
 ###############################################################################
 # 9b. Pre-install container packages using host Satellite subscription
 #     db and app containers are ubi9/ubi-init at runtime with no RHSM access.
-#     Download RPMs on the host (which has a valid subscription), copy them in,
-#     and localinstall — the same offline-fallback pattern used in
-#     deploy-rhel-containers.yml (Phase 6).
+#     Use podman mount + dnf --installroot so the host subscription satisfies
+#     all dependencies directly into the container filesystem without a
+#     download-copy-localinstall cycle.
 #
 #     Packages covered:
 #       db:  postgresql-server postgresql python3-psycopg2 rsyslog
@@ -221,6 +224,8 @@ ansible-playbook -i inventory/hosts.ini setup/deploy-central.yml --skip-tags key
 #       app: python3 python3-pip python3-psycopg2 rsyslog
 #            (needed by deploy-db-app.yml and integrate-splunk.yml)
 ###############################################################################
+
+subscription-manager repos --enable rhel-9-for-x86_64-appstream-rpms 2>/dev/null || true
 
 for container_name in db app; do
     if podman container exists "$container_name" 2>/dev/null; then
@@ -236,18 +241,15 @@ for container_name in db app; do
             continue
         fi
 
-        rpm_dir="/tmp/rpms-${container_name}"
-        echo "Pre-downloading packages for '${container_name}' container: ${pkgs}"
-        mkdir -p "$rpm_dir"
-        subscription-manager repos --enable rhel-9-for-x86_64-appstream-rpms 2>/dev/null || true
+        echo "Installing packages into '${container_name}' via podman mount: ${pkgs}"
+        podman stop "$container_name" 2>/dev/null || true
+        mnt=$(podman mount "$container_name")
         # shellcheck disable=SC2086
-        dnf download --resolve --alldeps --destdir "$rpm_dir" $pkgs
-
-        podman cp "$rpm_dir" "${container_name}:/tmp/rpms"
-        podman exec "$container_name" bash -c \
-            'dnf -y localinstall /tmp/rpms/*.rpm && rm -rf /tmp/rpms'
-        rm -rf "$rpm_dir"
-        echo "Packages pre-installed in '${container_name}' container"
+        dnf install --installroot="$mnt" --releasever=9 -y $pkgs
+        chroot "$mnt" rm -rf /var/log/dnf /var/cache/dnf
+        podman umount "$container_name"
+        podman start "$container_name"
+        echo "Packages installed in '${container_name}'"
     else
         echo "SKIP: Container '${container_name}' does not exist, skipping pre-install"
     fi
