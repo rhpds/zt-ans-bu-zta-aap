@@ -225,13 +225,21 @@ ansible-playbook -i inventory/hosts.ini setup/deploy-central.yml --skip-tags key
 for container_name in db app; do
     if podman container exists "$container_name" 2>/dev/null; then
         case "$container_name" in
-            db)  pkgs="postgresql-server postgresql python3-psycopg2 rsyslog" ;;
-            app) pkgs="python3 python3-pip python3-psycopg2 rsyslog" ;;
+            db)  pkgs="postgresql-server postgresql python3-psycopg2 rsyslog"
+                 check_pkg="postgresql-server" ;;
+            app) pkgs="python3 python3-pip python3-psycopg2 rsyslog"
+                 check_pkg="python3-psycopg2" ;;
         esac
+
+        if podman exec "$container_name" rpm -q "$check_pkg" &>/dev/null; then
+            echo "SKIP (already done): packages already installed in '${container_name}'"
+            continue
+        fi
 
         rpm_dir="/tmp/rpms-${container_name}"
         echo "Pre-downloading packages for '${container_name}' container: ${pkgs}"
         mkdir -p "$rpm_dir"
+        subscription-manager repos --enable rhel-9-for-x86_64-appstream-rpms 2>/dev/null || true
         # shellcheck disable=SC2086
         dnf download --resolve --alldeps --destdir "$rpm_dir" $pkgs
 

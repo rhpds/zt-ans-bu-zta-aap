@@ -136,9 +136,12 @@
       when: r_script_test.stat.exists
 
     - name: Execute bootstrap script
-      ansible.builtin.shell: >-
-        sh -x /tmp/setup-scripts/setup-{{ inventory_hostname }}.sh
-        > /tmp/setup-scripts/setup-{{ inventory_hostname }}.log 2>&1
+      ansible.builtin.shell: |
+        LOG=/tmp/setup-scripts/setup-{{ inventory_hostname }}-$(date +%Y%m%d-%H%M%S).log
+        sh -x /tmp/setup-scripts/setup-{{ inventory_hostname }}.sh > "$LOG" 2>&1
+        SCRIPT_RC=$?
+        ln -sf "$LOG" /tmp/setup-scripts/setup-{{ inventory_hostname }}-latest.log
+        exit $SCRIPT_RC
       when: r_script_test.stat.exists
       register: r_result
       environment:
@@ -216,9 +219,12 @@
         mode: '0755'
 
     - name: Execute central configure script
-      ansible.builtin.shell: >-
-        sh -x /tmp/setup-scripts/setup-central-configure.sh
-        > /tmp/setup-scripts/setup-central-configure.log 2>&1
+      ansible.builtin.shell: |
+        LOG=/tmp/setup-scripts/setup-central-configure-$(date +%Y%m%d-%H%M%S).log
+        sh -x /tmp/setup-scripts/setup-central-configure.sh > "$LOG" 2>&1
+        SCRIPT_RC=$?
+        ln -sf "$LOG" /tmp/setup-scripts/setup-central-configure-latest.log
+        exit $SCRIPT_RC
       register: r_central_configure
       environment:
         GUID: "{{ guid }}"
@@ -275,9 +281,12 @@
         mode: '0755'
 
     - name: Execute control configure script
-      ansible.builtin.shell: >-
-        sh -x /tmp/setup-scripts/setup-control-configure.sh
-        > /tmp/setup-scripts/setup-control-configure.log 2>&1
+      ansible.builtin.shell: |
+        LOG=/tmp/setup-scripts/setup-control-configure-$(date +%Y%m%d-%H%M%S).log
+        sh -x /tmp/setup-scripts/setup-control-configure.sh > "$LOG" 2>&1
+        SCRIPT_RC=$?
+        ln -sf "$LOG" /tmp/setup-scripts/setup-control-configure-latest.log
+        exit $SCRIPT_RC
       register: r_control_configure
       environment:
         GUID: "{{ guid }}"

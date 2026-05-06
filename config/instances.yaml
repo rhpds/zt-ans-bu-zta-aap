@@ -343,15 +343,15 @@ virtualmachines:
       # ── Keycloak ──
       - name: keycloak-http
         ports:
-          - port: 8080
-            protocol: TCP
-            targetPort: 8080
-            name: keycloak-http
-      - name: keycloak-https
-        ports:
           - port: 8180
             protocol: TCP
             targetPort: 8180
+            name: keycloak-http
+      - name: keycloak-https
+        ports:
+          - port: 8543
+            protocol: TCP
+            targetPort: 8543
             name: keycloak-https
       # ── OPA ──
       - name: opa-http
@@ -468,7 +468,7 @@ virtualmachines:
       - name: keycloak-https
         host: keycloak-https
         service: keycloak-https
-        targetPort: 8180
+        targetPort: 8543
         tls: true
         tls_termination: reencrypt
         tls_destinationCACertificate: |
