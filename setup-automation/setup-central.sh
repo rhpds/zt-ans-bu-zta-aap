@@ -128,8 +128,8 @@ for c in app db; do
 
         podman exec "$c" bash -c \
             'rm -f /etc/yum.repos.d/redhat.repo
-             grep -q "skip_if_unavailable" /etc/dnf/dnf.conf 2>/dev/null \
-               || echo "skip_if_unavailable=True" >> /etc/dnf/dnf.conf'
+             sed -i "s/^enabled=1/enabled=0/" /etc/dnf/plugins/subscription-manager.conf 2>/dev/null || true
+             sed -i "s/^skip_if_unavailable=.*/skip_if_unavailable=True/" /etc/dnf/dnf.conf 2>/dev/null || true'
     else
         echo "SKIP: Container '$c' does not exist"
     fi
@@ -262,8 +262,8 @@ for container_name in db app; do
         # when Satellite is unreachable from the container.
         podman exec "$container_name" bash -c \
             'rm -f /etc/yum.repos.d/redhat.repo
-             grep -q "skip_if_unavailable" /etc/dnf/dnf.conf 2>/dev/null \
-               || echo "skip_if_unavailable=True" >> /etc/dnf/dnf.conf'
+             sed -i "s/^enabled=1/enabled=0/" /etc/dnf/plugins/subscription-manager.conf 2>/dev/null || true
+             sed -i "s/^skip_if_unavailable=.*/skip_if_unavailable=True/" /etc/dnf/dnf.conf 2>/dev/null || true'
     else
         echo "SKIP: Container '${container_name}' does not exist, skipping pre-install"
     fi
