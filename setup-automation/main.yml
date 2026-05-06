@@ -267,9 +267,9 @@
     - name: Wait for Vault KV secret engine to be mounted (configure-vault.yml must have run)
       ansible.builtin.uri:
         url: "http://192.168.1.12:8200/v1/sys/internal/ui/mounts/secret"
-        status_code: [200, 404]
+        status_code: [200, 403, 404]
       register: r_vault_kv_ready
-      until: r_vault_kv_ready.status == 200
+      until: r_vault_kv_ready.status in [200, 403]
       retries: 12
       delay: 10
       become: false
