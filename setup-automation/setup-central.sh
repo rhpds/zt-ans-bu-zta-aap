@@ -121,6 +121,8 @@ for c in app db; do
             mnt=$(podman mount "$c")
             dnf install --installroot="$mnt" --releasever=9 -y ipa-client
             chroot "$mnt" rm -rf /var/log/dnf /var/cache/dnf
+            rm -f "$mnt"/etc/yum.repos.d/redhat.repo
+            echo "skip_if_unavailable=True" >> "$mnt"/etc/dnf/dnf.conf
             podman umount "$c"
             podman start "$c"
             echo "ipa-client installed in '${c}'"
@@ -247,6 +249,8 @@ for container_name in db app; do
         # shellcheck disable=SC2086
         dnf install --installroot="$mnt" --releasever=9 -y $pkgs
         chroot "$mnt" rm -rf /var/log/dnf /var/cache/dnf
+        rm -f "$mnt"/etc/yum.repos.d/redhat.repo
+        echo "skip_if_unavailable=True" >> "$mnt"/etc/dnf/dnf.conf
         podman umount "$container_name"
         podman start "$container_name"
         echo "Packages installed in '${container_name}'"
