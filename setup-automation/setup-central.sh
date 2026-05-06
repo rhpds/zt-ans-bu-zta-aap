@@ -207,6 +207,44 @@ cd "${PLAYBOOK_DIR}" || { echo "ERROR: Cannot cd to ${PLAYBOOK_DIR}"; exit 1; }
 ansible-playbook -i inventory/hosts.ini setup/configure-dns.yml
 ansible-playbook -i inventory/hosts.ini setup/enroll-idm-clients.yml
 ansible-playbook -i inventory/hosts.ini setup/deploy-central.yml --skip-tags keycloak
+
+###############################################################################
+# 9b. Pre-install container packages using host Satellite subscription
+#     db and app containers are ubi9/ubi-init at runtime with no RHSM access.
+#     Download RPMs on the host (which has a valid subscription), copy them in,
+#     and localinstall — the same offline-fallback pattern used in
+#     deploy-rhel-containers.yml (Phase 6).
+#
+#     Packages covered:
+#       db:  postgresql-server postgresql python3-psycopg2 rsyslog
+#            (needed by deploy-db-app.yml and integrate-splunk.yml)
+#       app: python3 python3-pip python3-psycopg2 rsyslog
+#            (needed by deploy-db-app.yml and integrate-splunk.yml)
+###############################################################################
+
+for container_name in db app; do
+    if podman container exists "$container_name" 2>/dev/null; then
+        case "$container_name" in
+            db)  pkgs="postgresql-server postgresql python3-psycopg2 rsyslog" ;;
+            app) pkgs="python3 python3-pip python3-psycopg2 rsyslog" ;;
+        esac
+
+        rpm_dir="/tmp/rpms-${container_name}"
+        echo "Pre-downloading packages for '${container_name}' container: ${pkgs}"
+        mkdir -p "$rpm_dir"
+        # shellcheck disable=SC2086
+        dnf download --resolve --alldeps --destdir "$rpm_dir" $pkgs
+
+        podman cp "$rpm_dir" "${container_name}:/tmp/rpms"
+        podman exec "$container_name" bash -c \
+            'dnf -y localinstall /tmp/rpms/*.rpm && rm -rf /tmp/rpms'
+        rm -rf "$rpm_dir"
+        echo "Packages pre-installed in '${container_name}' container"
+    else
+        echo "SKIP: Container '${container_name}' does not exist, skipping pre-install"
+    fi
+done
+
 ansible-playbook -i inventory/hosts.ini setup/deploy-db-app.yml
 
 echo ""

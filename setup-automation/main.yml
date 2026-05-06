@@ -256,6 +256,16 @@
     guid: "{{ lookup('ansible.builtin.env', 'GUID') }}"
     domain: "{{ lookup('ansible.builtin.env', 'DOMAIN') }}"
   tasks:
+    - name: Wait for Vault KV secret engine (central configure must have run configure-vault.yml)
+      ansible.builtin.uri:
+        url: "http://192.168.1.12:8200/v1/secret/"
+        status_code: [403]
+      register: r_vault_kv_ready
+      until: r_vault_kv_ready.status == 403
+      retries: 6
+      delay: 10
+      become: false
+
     - name: Copy control configure script
       ansible.builtin.copy:
         src: ./setup-control-configure.sh
