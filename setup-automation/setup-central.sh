@@ -121,12 +121,15 @@ for c in app db; do
             mnt=$(podman mount "$c")
             dnf install --installroot="$mnt" --releasever=9 -y ipa-client
             chroot "$mnt" rm -rf /var/log/dnf /var/cache/dnf
-            rm -f "$mnt"/etc/yum.repos.d/redhat.repo
-            echo "skip_if_unavailable=True" >> "$mnt"/etc/dnf/dnf.conf
             podman umount "$c"
             podman start "$c"
             echo "ipa-client installed in '${c}'"
         fi
+
+        podman exec "$c" bash -c \
+            'rm -f /etc/yum.repos.d/redhat.repo
+             grep -q "skip_if_unavailable" /etc/dnf/dnf.conf 2>/dev/null \
+               || echo "skip_if_unavailable=True" >> /etc/dnf/dnf.conf'
     else
         echo "SKIP: Container '$c' does not exist"
     fi
@@ -240,20 +243,27 @@ for container_name in db app; do
 
         if podman exec "$container_name" rpm -q "$check_pkg" &>/dev/null; then
             echo "SKIP (already done): packages already installed in '${container_name}'"
-            continue
+        else
+            echo "Installing packages into '${container_name}' via podman mount: ${pkgs}"
+            podman stop "$container_name" 2>/dev/null || true
+            mnt=$(podman mount "$container_name")
+            # shellcheck disable=SC2086
+            dnf install --installroot="$mnt" --releasever=9 -y $pkgs
+            chroot "$mnt" rm -rf /var/log/dnf /var/cache/dnf
+            podman umount "$container_name"
+            podman start "$container_name"
+            echo "Packages installed in '${container_name}'"
         fi
 
-        echo "Installing packages into '${container_name}' via podman mount: ${pkgs}"
-        podman stop "$container_name" 2>/dev/null || true
-        mnt=$(podman mount "$container_name")
-        # shellcheck disable=SC2086
-        dnf install --installroot="$mnt" --releasever=9 -y $pkgs
-        chroot "$mnt" rm -rf /var/log/dnf /var/cache/dnf
-        rm -f "$mnt"/etc/yum.repos.d/redhat.repo
-        echo "skip_if_unavailable=True" >> "$mnt"/etc/dnf/dnf.conf
-        podman umount "$container_name"
-        podman start "$container_name"
-        echo "Packages installed in '${container_name}'"
+        # Remove the RHSM repo file and set skip_if_unavailable unconditionally.
+        # deploy-central.yml may have pre-installed packages via dnf, leaving
+        # redhat.repo inside the container. Ansible's dnf module refreshes ALL
+        # repo metadata on initialisation — even for state: present — and aborts
+        # when Satellite is unreachable from the container.
+        podman exec "$container_name" bash -c \
+            'rm -f /etc/yum.repos.d/redhat.repo
+             grep -q "skip_if_unavailable" /etc/dnf/dnf.conf 2>/dev/null \
+               || echo "skip_if_unavailable=True" >> /etc/dnf/dnf.conf'
     else
         echo "SKIP: Container '${container_name}' does not exist, skipping pre-install"
     fi
