@@ -112,9 +112,11 @@ run_if_needed "Install Python3 libraries" \
 # 5. Clone workshop repo (idempotent)
 ###############################################################################
 
-if [ -d /tmp/zta-workshop-aap ]; then
-    echo "SKIP: /tmp/zta-workshop-aap already exists"
+if [ -d /tmp/zta-workshop-aap/.git ]; then
+    echo "INFO: /tmp/zta-workshop-aap exists, pulling latest main"
+    git -C /tmp/zta-workshop-aap pull --ff-only origin main
 else
+    rm -rf /tmp/zta-workshop-aap
     retry "Clone ZTA workshop repo" \
         git clone -b main https://github.com/rhpds/lb2864-zta-aap-automation.git /tmp/zta-workshop-aap
 fi
