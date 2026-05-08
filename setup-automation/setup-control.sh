@@ -152,6 +152,12 @@ run_if_needed "Install Ansible collections" \
     -- \
     ansible-galaxy install -r /tmp/requirements.yml
 
+# paramiko is required by arista.eos for direct SSH to cEOS switches
+run_if_needed "Install paramiko" \
+    bash -c 'python3 -c "import paramiko" 2>/dev/null' \
+    -- \
+    bash -c 'dnf install -y python3-pip 2>/dev/null; python3 -m pip install paramiko'
+
 cp /tmp/zta-workshop-aap/ansible.cfg /etc/ansible/
 
 echo ""
