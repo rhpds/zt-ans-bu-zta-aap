@@ -148,9 +148,23 @@ collections:
 EOF
 
 run_if_needed "Install Ansible collections" \
-    bash -c 'ansible-galaxy collection list | grep -q "ansible.controller"' \
+    bash -c 'ansible-galaxy collection list | grep -q "arista.eos"' \
     -- \
     ansible-galaxy install -r /tmp/requirements.yml
+
+# If ansible.controller was not installed from Automation Hub (e.g. token
+# expired or unavailable), create a namespace symlink so that awx.awx
+# (installed from Galaxy) serves the ansible.controller FQCN.  Both the
+# module names (ansible.controller.*) and module_defaults group resolution
+# (group/ansible.controller.controller:) work via this symlink because
+# Ansible uses path-based collection lookup; awx.awx defines the same
+# action_groups.controller entries as ansible.controller.
+if ! ansible-galaxy collection list 2>/dev/null | grep -q "ansible.controller"; then
+    echo "INFO: ansible.controller not found; symlinking awx.awx as ansible.controller"
+    mkdir -p ~/.ansible/collections/ansible_collections/ansible
+    ln -sfn ~/.ansible/collections/ansible_collections/awx/awx \
+            ~/.ansible/collections/ansible_collections/ansible/controller
+fi
 
 # paramiko is required by arista.eos for direct SSH to cEOS switches
 run_if_needed "Install paramiko" \
