@@ -115,9 +115,15 @@ run_if_needed "Install Python3 libraries" \
 if [ -d /tmp/zta-workshop-aap ]; then
     echo "SKIP: /tmp/zta-workshop-aap already exists"
 else
-    retry "Clone ZTA workshop repo (zta-container branch)" \
-        git clone -b zta-container https://github.com/nmartins0611/zta-workshop-aap.git /tmp/zta-workshop-aap
+    retry "Clone ZTA workshop repo" \
+        git clone -b main https://github.com/rhpds/lb2864-zta-aap-automation.git /tmp/zta-workshop-aap
 fi
+
+# Ensure Ansible SSH ControlPath and fact-cache dirs are owned by the run user.
+# ansible.cfg sets control_path_dir=/tmp/.ansible-cp; if provisioning runs as
+# root first and creates the directory, subsequent rhel-user runs will fail.
+mkdir -p /tmp/.ansible-cp /tmp/.ansible-fact-cache
+chmod 700 /tmp/.ansible-cp /tmp/.ansible-fact-cache
 
 ###############################################################################
 # 6. Install Ansible collections
