@@ -78,18 +78,23 @@ attempt, create a namespace symlink:
 implementations. The symlink satisfies both FQCN lookups and `module_defaults`
 group resolution without changing any playbook code.
 
-### 1.5 Full configure phase wired up — all sections, EDA, AAP 2.6 token
+### 1.5 Configure phase: AAP readiness wait and AAP 2.6 token
 
 **File:** `setup-automation/setup-control-configure.sh`
-**Commit:** `aea357c`
+**Commits:** `aea357c`, `914fc01`
 
-Three problems in the original configure script:
+Two problems in the original configure script (section tagging restored to `section1` only — see below):
 
 | Problem | Fix |
 |---|---|
-| Only `--tags section1` was passed — Sections 2–6 and EDA templates never created | Added `section1` through `section6` and `eda` tags so all student-facing job templates exist on a fresh deploy |
 | AAP controller was polled but the script didn't wait long enough | Added a 60-attempt polling loop on `/api/controller/v2/ping/` before running any configure playbooks |
 | AAP 2.6 Gateway: `awx.awx:24.6.1` internally calls `/api/v2/tokens/` which returns 404 on the Gateway proxy | Pre-generate a token via `/api/controller/v2/tokens/` and pass it as `controller_oauthtoken` extra-var to bypass the broken auto-token path |
+
+**Note on section tags:** An intermediate commit (`aea357c`) incorrectly changed the initial configure to
+pre-create sections 1–6 upfront. This was reverted (`914fc01`) — initial deployment creates Section 1
+templates only. Module transition scripts (`runtime-automation/module-0*/setup-central.sh`) handle the
+progressive reveal (module-02 removes S1/adds S2, module-03 adds S3, etc.). EDA infrastructure is still
+set up at initial configure because the event stream URL must be wired into Splunk before module-05.
 
 ### 1.6 AAP OAuth token pre-generated in all module transition scripts
 
