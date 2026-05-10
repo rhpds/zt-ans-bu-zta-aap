@@ -44,20 +44,17 @@ Fixes in **`lb2864-zta-aap-automation`** (`main`) are in AAP playbook content.
 These are environmental issues that prevented the lab from reaching a working
 initial state. They apply to all sections.
 
-### 2.1 Clone source pointed at stale personal fork
+### 2.1 Clone source, personal fork
 
 **Files:** `setup-automation/setup-central.sh`, `setup-automation/setup-control.sh`,
 `config/instances.yaml`
 **Commits:** `8a53f78`, `6084235`
 
 **Observed:** On every fresh deployment both VMs were cloning
-`nmartins0611/zta-workshop-aap` (`zta-container` branch). That repo is not
-maintained by the team and diverged from the lab content used during development.
-Gitea was also seeded from the same source, meaning AAP's SCM project synced
-from the wrong fork.
+`nmartins0611/zta-workshop-aap` (`zta-container` branch).
 
-**Root cause:** The original clone URLs were never updated after the content was
-moved to `rhpds/lb2864-zta-aap-automation`.
+I changed this to an internal rhdps repo at http://gitea:3000/gitea/zta-workshop-aap for tuning purposes.
+The changes made are explained later in this doc.
 
 **Fix:**
 - `setup-central.sh` and `setup-control.sh`: clone from
