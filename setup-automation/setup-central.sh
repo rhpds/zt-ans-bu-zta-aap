@@ -106,22 +106,30 @@ run_if_needed "Install paramiko" \
      pip3 install paramiko --user
 
 ###############################################################################
-# 5. Download IPA RPMs for containers
+# 5. Install IPA client into containers via podman mount
 ###############################################################################
 
-if [ ! -d /tmp/ipa-rpms ]; then
-    mkdir -p /tmp/ipa-rpms
-    dnf download --resolve --destdir /tmp/ipa-rpms ipa-client
-fi
+subscription-manager repos --enable rhel-9-for-x86_64-appstream-rpms 2>/dev/null || true
 
 for c in app db; do
     if podman container exists "$c" 2>/dev/null; then
         if podman exec "$c" rpm -q ipa-client &>/dev/null; then
             echo "SKIP: ipa-client already installed in container '$c'"
         else
-            podman cp /tmp/ipa-rpms "$c":/tmp/ipa-rpms
-            podman exec "$c" bash -c 'dnf install -y /tmp/ipa-rpms/*.rpm && rm -rf /tmp/ipa-rpms'
+            echo "Installing ipa-client into '${c}' via podman mount"
+            podman stop "$c" 2>/dev/null || true
+            mnt=$(podman mount "$c")
+            dnf install --installroot="$mnt" --releasever=9 -y ipa-client
+            chroot "$mnt" rm -rf /var/log/dnf /var/cache/dnf
+            podman umount "$c"
+            podman start "$c"
+            echo "ipa-client installed in '${c}'"
         fi
+
+        podman exec "$c" bash -c \
+            'rm -f /etc/yum.repos.d/redhat.repo
+             sed -i "s/^enabled=1/enabled=0/" /etc/dnf/plugins/subscription-manager.conf 2>/dev/null || true
+             sed -i "s/^skip_if_unavailable=.*/skip_if_unavailable=True/" /etc/dnf/dnf.conf 2>/dev/null || true'
     else
         echo "SKIP: Container '$c' does not exist"
     fi
@@ -131,12 +139,18 @@ done
 # 6. Clone workshop repo (idempotent)
 ###############################################################################
 
-if [ -d /tmp/zta-workshop-aap ]; then
-    echo "SKIP: /tmp/zta-workshop-aap already exists"
+if [ -d /tmp/zta-workshop-aap/.git ]; then
+    echo "INFO: /tmp/zta-workshop-aap exists, pulling latest main"
+    git -C /tmp/zta-workshop-aap pull --ff-only origin main
 else
-    retry "Clone ZTA workshop repo (zta-container branch)" \
-        git clone -b zta-container https://github.com/nmartins0611/zta-workshop-aap.git /tmp/zta-workshop-aap
+    rm -rf /tmp/zta-workshop-aap
+    retry "Clone ZTA workshop repo" \
+        git clone -b main https://github.com/rhpds/lb2864-zta-aap-automation.git /tmp/zta-workshop-aap
 fi
+
+# Ensure Ansible SSH ControlPath and fact-cache dirs are owned by the run user.
+mkdir -p /tmp/.ansible-cp /tmp/.ansible-fact-cache
+chmod 700 /tmp/.ansible-cp /tmp/.ansible-fact-cache
 
 ###############################################################################
 # 7. IPA rewrite config (idempotent)
@@ -207,6 +221,60 @@ cd "${PLAYBOOK_DIR}" || { echo "ERROR: Cannot cd to ${PLAYBOOK_DIR}"; exit 1; }
 ansible-playbook -i inventory/hosts.ini setup/configure-dns.yml
 ansible-playbook -i inventory/hosts.ini setup/enroll-idm-clients.yml
 ansible-playbook -i inventory/hosts.ini setup/deploy-central.yml --skip-tags keycloak
+
+###############################################################################
+# 9b. Pre-install container packages using host Satellite subscription
+#     db and app containers are ubi9/ubi-init at runtime with no RHSM access.
+#     Use podman mount + dnf --installroot so the host subscription satisfies
+#     all dependencies directly into the container filesystem without a
+#     download-copy-localinstall cycle.
+#
+#     Packages covered:
+#       db:  postgresql-server postgresql python3-psycopg2 rsyslog
+#            (needed by deploy-db-app.yml and integrate-splunk.yml)
+#       app: python3 python3-pip python3-psycopg2 rsyslog
+#            (needed by deploy-db-app.yml and integrate-splunk.yml)
+###############################################################################
+
+subscription-manager repos --enable rhel-9-for-x86_64-appstream-rpms 2>/dev/null || true
+
+for container_name in db app; do
+    if podman container exists "$container_name" 2>/dev/null; then
+        case "$container_name" in
+            db)  pkgs="postgresql-server postgresql python3-psycopg2 rsyslog"
+                 check_pkg="postgresql-server" ;;
+            app) pkgs="python3 python3-pip python3-psycopg2 rsyslog"
+                 check_pkg="python3-psycopg2" ;;
+        esac
+
+        if podman exec "$container_name" rpm -q "$check_pkg" &>/dev/null; then
+            echo "SKIP (already done): packages already installed in '${container_name}'"
+        else
+            echo "Installing packages into '${container_name}' via podman mount: ${pkgs}"
+            podman stop "$container_name" 2>/dev/null || true
+            mnt=$(podman mount "$container_name")
+            # shellcheck disable=SC2086
+            dnf install --installroot="$mnt" --releasever=9 -y $pkgs
+            chroot "$mnt" rm -rf /var/log/dnf /var/cache/dnf
+            podman umount "$container_name"
+            podman start "$container_name"
+            echo "Packages installed in '${container_name}'"
+        fi
+
+        # Remove the RHSM repo file and set skip_if_unavailable unconditionally.
+        # deploy-central.yml may have pre-installed packages via dnf, leaving
+        # redhat.repo inside the container. Ansible's dnf module refreshes ALL
+        # repo metadata on initialisation — even for state: present — and aborts
+        # when Satellite is unreachable from the container.
+        podman exec "$container_name" bash -c \
+            'rm -f /etc/yum.repos.d/redhat.repo
+             sed -i "s/^enabled=1/enabled=0/" /etc/dnf/plugins/subscription-manager.conf 2>/dev/null || true
+             sed -i "s/^skip_if_unavailable=.*/skip_if_unavailable=True/" /etc/dnf/dnf.conf 2>/dev/null || true'
+    else
+        echo "SKIP: Container '${container_name}' does not exist, skipping pre-install"
+    fi
+done
+
 ansible-playbook -i inventory/hosts.ini setup/deploy-db-app.yml
 
 echo ""

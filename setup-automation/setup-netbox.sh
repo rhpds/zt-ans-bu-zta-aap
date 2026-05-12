@@ -203,8 +203,9 @@ if curl -f -s http://localhost:8000 &>/dev/null; then
     echo "============================================================"
 else
     echo ""
-    echo "WARNING: NetBox may not be fully ready yet"
-    echo "Check status with: docker compose -f /tmp/netbox-docker/docker-compose.yml ps"
+    echo "ERROR: NetBox is not responding at http://localhost:8000"
+    docker compose -f /tmp/netbox-docker/docker-compose.yml logs netbox --tail=30
+    exit 1
 fi
 
 echo ""

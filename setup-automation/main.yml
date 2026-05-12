@@ -105,6 +105,7 @@
   hosts: all:!localhost
   gather_facts: false
   become: true
+  any_errors_fatal: true
   vars_files:
     - ../config/secrets.yaml
   vars:
@@ -135,9 +136,12 @@
       when: r_script_test.stat.exists
 
     - name: Execute bootstrap script
-      ansible.builtin.shell: >-
-        sh -x /tmp/setup-scripts/setup-{{ inventory_hostname }}.sh
-        > /tmp/setup-scripts/setup-{{ inventory_hostname }}.log 2>&1
+      ansible.builtin.shell: |
+        LOG=/tmp/setup-scripts/setup-{{ inventory_hostname }}-$(date +%Y%m%d-%H%M%S).log
+        sh -x /tmp/setup-scripts/setup-{{ inventory_hostname }}.sh > "$LOG" 2>&1
+        SCRIPT_RC=$?
+        ln -sf "$LOG" /tmp/setup-scripts/setup-{{ inventory_hostname }}-latest.log
+        exit $SCRIPT_RC
       when: r_script_test.stat.exists
       register: r_result
       environment:
@@ -181,6 +185,7 @@
   hosts: central
   gather_facts: false
   become: true
+  any_errors_fatal: true
   vars_files:
     - ../config/secrets.yaml
   vars:
@@ -214,9 +219,12 @@
         mode: '0755'
 
     - name: Execute central configure script
-      ansible.builtin.shell: >-
-        sh -x /tmp/setup-scripts/setup-central-configure.sh
-        > /tmp/setup-scripts/setup-central-configure.log 2>&1
+      ansible.builtin.shell: |
+        LOG=/tmp/setup-scripts/setup-central-configure-$(date +%Y%m%d-%H%M%S).log
+        sh -x /tmp/setup-scripts/setup-central-configure.sh > "$LOG" 2>&1
+        SCRIPT_RC=$?
+        ln -sf "$LOG" /tmp/setup-scripts/setup-central-configure-latest.log
+        exit $SCRIPT_RC
       register: r_central_configure
       environment:
         GUID: "{{ guid }}"
@@ -256,6 +264,16 @@
     guid: "{{ lookup('ansible.builtin.env', 'GUID') }}"
     domain: "{{ lookup('ansible.builtin.env', 'DOMAIN') }}"
   tasks:
+    - name: Wait for Vault KV secret engine to be mounted (configure-vault.yml must have run)
+      ansible.builtin.uri:
+        url: "http://192.168.1.12:8200/v1/sys/internal/ui/mounts/secret"
+        status_code: [200, 403, 404]
+      register: r_vault_kv_ready
+      until: r_vault_kv_ready.status in [200, 403]
+      retries: 12
+      delay: 10
+      become: false
+
     - name: Copy control configure script
       ansible.builtin.copy:
         src: ./setup-control-configure.sh
@@ -263,9 +281,12 @@
         mode: '0755'
 
     - name: Execute control configure script
-      ansible.builtin.shell: >-
-        sh -x /tmp/setup-scripts/setup-control-configure.sh
-        > /tmp/setup-scripts/setup-control-configure.log 2>&1
+      ansible.builtin.shell: |
+        LOG=/tmp/setup-scripts/setup-control-configure-$(date +%Y%m%d-%H%M%S).log
+        sh -x /tmp/setup-scripts/setup-control-configure.sh > "$LOG" 2>&1
+        SCRIPT_RC=$?
+        ln -sf "$LOG" /tmp/setup-scripts/setup-control-configure-latest.log
+        exit $SCRIPT_RC
       register: r_control_configure
       environment:
         GUID: "{{ guid }}"

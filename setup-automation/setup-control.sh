@@ -112,12 +112,20 @@ run_if_needed "Install Python3 libraries" \
 # 5. Clone workshop repo (idempotent)
 ###############################################################################
 
-if [ -d /tmp/zta-workshop-aap ]; then
-    echo "SKIP: /tmp/zta-workshop-aap already exists"
+if [ -d /tmp/zta-workshop-aap/.git ]; then
+    echo "INFO: /tmp/zta-workshop-aap exists, pulling latest main"
+    git -C /tmp/zta-workshop-aap pull --ff-only origin main
 else
-    retry "Clone ZTA workshop repo (zta-container branch)" \
-        git clone -b zta-container https://github.com/nmartins0611/zta-workshop-aap.git /tmp/zta-workshop-aap
+    rm -rf /tmp/zta-workshop-aap
+    retry "Clone ZTA workshop repo" \
+        git clone -b main https://github.com/rhpds/lb2864-zta-aap-automation.git /tmp/zta-workshop-aap
 fi
+
+# Ensure Ansible SSH ControlPath and fact-cache dirs are owned by the run user.
+# ansible.cfg sets control_path_dir=/tmp/.ansible-cp; if provisioning runs as
+# root first and creates the directory, subsequent rhel-user runs will fail.
+mkdir -p /tmp/.ansible-cp /tmp/.ansible-fact-cache
+chmod 700 /tmp/.ansible-cp /tmp/.ansible-fact-cache
 
 ###############################################################################
 # 6. Install Ansible collections
@@ -140,9 +148,29 @@ collections:
 EOF
 
 run_if_needed "Install Ansible collections" \
-    bash -c 'ansible-galaxy collection list | grep -q "ansible.controller"' \
+    bash -c 'ansible-galaxy collection list | grep -q "arista.eos"' \
     -- \
     ansible-galaxy install -r /tmp/requirements.yml
+
+# If ansible.controller was not installed from Automation Hub (e.g. token
+# expired or unavailable), create a namespace symlink so that awx.awx
+# (installed from Galaxy) serves the ansible.controller FQCN.  Both the
+# module names (ansible.controller.*) and module_defaults group resolution
+# (group/ansible.controller.controller:) work via this symlink because
+# Ansible uses path-based collection lookup; awx.awx defines the same
+# action_groups.controller entries as ansible.controller.
+if ! ansible-galaxy collection list 2>/dev/null | grep -q "ansible.controller"; then
+    echo "INFO: ansible.controller not found; symlinking awx.awx as ansible.controller"
+    mkdir -p ~/.ansible/collections/ansible_collections/ansible
+    ln -sfn ~/.ansible/collections/ansible_collections/awx/awx \
+            ~/.ansible/collections/ansible_collections/ansible/controller
+fi
+
+# paramiko is required by arista.eos for direct SSH to cEOS switches
+run_if_needed "Install paramiko" \
+    bash -c 'python3 -c "import paramiko" 2>/dev/null' \
+    -- \
+    bash -c 'dnf install -y python3-pip 2>/dev/null; python3 -m pip install paramiko'
 
 cp /tmp/zta-workshop-aap/ansible.cfg /etc/ansible/
 

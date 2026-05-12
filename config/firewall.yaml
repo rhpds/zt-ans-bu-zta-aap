@@ -50,11 +50,9 @@ ingress:
     port: 8081     # Global Telemetry Platform (App container)
   # ── Keycloak ──
   - protocol: TCP
-    port: 8080     # Keycloak HTTP
+    port: 8180     # Keycloak HTTP
   - protocol: TCP
-    port: 8443     # Keycloak HTTPS
-  - protocol: TCP
-    port: 8543     # Keycloak admin console
+    port: 8543     # Keycloak HTTPS
   # ── OPA ──
   - protocol: TCP
     port: 8181     # OPA policy API
@@ -146,11 +144,9 @@ egress:
     port: 8081     # Global Telemetry Platform (App container)
   # ── Keycloak ──
   - protocol: TCP
-    port: 8080     # Keycloak HTTP
+    port: 8180     # Keycloak HTTP
   - protocol: TCP
-    port: 8443     # Keycloak HTTPS
-  - protocol: TCP
-    port: 8543     # Keycloak admin console
+    port: 8543     # Keycloak HTTPS
   # ── OPA ──
   - protocol: TCP
     port: 8181     # OPA policy API

@@ -127,7 +127,9 @@ if vault status -address=http://127.0.0.1:8200 &>/dev/null; then
     echo "  Status: ${SEALED}"
     echo "============================================================"
 else
-    echo "WARNING: Could not verify Vault status"
+    echo "ERROR: Could not verify Vault status after setup"
+    sudo journalctl -u vault --no-pager -n 20
+    exit 1
 fi
 
 echo ""

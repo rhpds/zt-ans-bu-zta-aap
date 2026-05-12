@@ -3,6 +3,8 @@
 * xref:module-02.adoc[Module-02. Deploy application with short-lived credentials]
 * xref:module-03.adoc[Module-03. AAP Policy as Code: platform-gated patching]
 * xref:module-04.adoc[Module-04. SPIFFE-verified network VLAN management]
-* xref:module-04.adoc[Module-05. Automated incident response With Splunk and EDA]
+* xref:module-05.adoc[Module-05. Automated incident response with Splunk and EDA]
+* xref:module-06.adoc[Module-06. SSH lockdown and break-glass]
+* xref:module-07.adoc[Module-07. Wazuh SIEM (optional)]
 
 
