@@ -18,7 +18,7 @@ ansible-playbook -i inventory/hosts.ini setup/configure-aap-inventory.yml
 ansible-playbook -i inventory/hosts.ini setup/configure-aap-project.yml --tags ee,project
 ansible-playbook -i inventory/hosts.ini setup/configure-aap-inventory.yml
 ansible-playbook -i inventory/hosts.ini setup/configure-aap-netbox.yml 
-ansible-playbook -i inventory/hosts.ini setup/configure-aap-project.yml --tags section1
+ansible-playbook -i inventory/hosts.ini setup/configure-aap-project.yml --tags templates
 
 echo ""
 echo "control configure phase complete"
