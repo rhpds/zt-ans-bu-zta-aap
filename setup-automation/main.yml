@@ -179,10 +179,17 @@
         - r_result.rc is defined
         - r_result.rc != 0
 
-# Phase 4: Central configure (~200s)
-# Waits for Vault and NetBox, then runs dependent playbooks
-- name: Central service-dependent configuration
-  hosts: central
+# Phases 4+5: Central + Control configure in parallel (~200s, was ~380s sequential)
+#
+# Uses strategy: free so each host progresses independently:
+#   - central: waits for Vault + NetBox, then runs wave-based parallel configure
+#   - control: waits for Vault KV engine, then runs wave-based parallel AAP configure
+#
+# Cross-host dependency (control needs Vault KV from central's configure-vault)
+# is handled naturally by control's Vault KV wait loop.
+- name: Configure central and control services
+  hosts: central,control
+  strategy: free
   gather_facts: false
   become: true
   any_errors_fatal: true
@@ -192,7 +199,8 @@
     guid: "{{ lookup('ansible.builtin.env', 'GUID') }}"
     domain: "{{ lookup('ansible.builtin.env', 'DOMAIN') }}"
   tasks:
-    - name: Wait for Vault to be unsealed
+    # --- Central pre-checks ---
+    - name: "Central: wait for Vault to be unsealed"
       ansible.builtin.command: vault status -address=http://127.0.0.1:8200
       delegate_to: vault
       register: r_vault_ready
@@ -200,8 +208,9 @@
       retries: 30
       delay: 10
       changed_when: false
+      when: inventory_hostname == 'central'
 
-    - name: Wait for NetBox to be responsive
+    - name: "Central: wait for NetBox to be responsive"
       ansible.builtin.uri:
         url: http://127.0.0.1:8000
         status_code: 200
@@ -211,105 +220,21 @@
       retries: 30
       delay: 10
       changed_when: false
+      when: inventory_hostname == 'central'
 
-    - name: Copy central configure script
-      ansible.builtin.copy:
-        src: ./setup-central-configure.sh
-        dest: /tmp/setup-scripts/setup-central-configure.sh
-        mode: '0755'
-
-    - name: Execute central configure script
-      ansible.builtin.shell: |
-        LOG=/tmp/setup-scripts/setup-central-configure-$(date +%Y%m%d-%H%M%S).log
-        sh -x /tmp/setup-scripts/setup-central-configure.sh > "$LOG" 2>&1
-        SCRIPT_RC=$?
-        ln -sf "$LOG" /tmp/setup-scripts/setup-central-configure-latest.log
-        exit $SCRIPT_RC
-      register: r_central_configure
-      environment:
-        GUID: "{{ guid }}"
-        DOMAIN: "{{ domain }}"
-        AH_TOKEN: "{{ ahtoken }}"
-        TMM_ID: "{{ tmm_activation }}"
-        TMM_ORG: "{{ tmm_orgid }}"
-
-    - name: Show central configure output
-      ansible.builtin.debug:
-        var: r_central_configure.stdout_lines
-      when: r_central_configure.stdout_lines is defined
-
-    - name: Save central configure output
-      ansible.builtin.copy:
-        content: "{{ r_central_configure.stdout | default(r_central_configure.stderr) | default(r_central_configure) }}"
-        dest: /tmp/central-configure.out
-      delegate_to: localhost
-      become: false
-
-    - name: Fail if central configure failed
-      ansible.builtin.fail:
-        msg: "Central configure phase failed"
-      when:
-        - r_central_configure.rc is defined
-        - r_central_configure.rc != 0
-
-# Phase 5: Control configure (~180s)
-# Runs AAP playbooks after central has configured vault/netbox
-- name: Control AAP configuration
-  hosts: control
-  gather_facts: false
-  become: true
-  vars_files:
-    - ../config/secrets.yaml
-  vars:
-    guid: "{{ lookup('ansible.builtin.env', 'GUID') }}"
-    domain: "{{ lookup('ansible.builtin.env', 'DOMAIN') }}"
-  tasks:
-    - name: Wait for Vault KV secret engine to be mounted (configure-vault.yml must have run)
+    # --- Control pre-checks ---
+    - name: "Control: wait for Vault KV secret engine"
       ansible.builtin.uri:
         url: "http://192.168.1.12:8200/v1/sys/internal/ui/mounts/secret"
         status_code: [200, 403, 404]
       register: r_vault_kv_ready
       until: r_vault_kv_ready.status in [200, 403]
-      retries: 12
+      retries: 30
       delay: 10
       become: false
+      when: inventory_hostname == 'control'
 
-    - name: Copy control configure script
-      ansible.builtin.copy:
-        src: ./setup-control-configure.sh
-        dest: /tmp/setup-scripts/setup-control-configure.sh
-        mode: '0755'
-
-    - name: Execute control configure script
-      ansible.builtin.shell: |
-        LOG=/tmp/setup-scripts/setup-control-configure-$(date +%Y%m%d-%H%M%S).log
-        sh -x /tmp/setup-scripts/setup-control-configure.sh > "$LOG" 2>&1
-        SCRIPT_RC=$?
-        ln -sf "$LOG" /tmp/setup-scripts/setup-control-configure-latest.log
-        exit $SCRIPT_RC
-      register: r_control_configure
-      environment:
-        GUID: "{{ guid }}"
-        DOMAIN: "{{ domain }}"
-        AH_TOKEN: "{{ ahtoken }}"
-        TMM_ID: "{{ tmm_activation }}"
-        TMM_ORG: "{{ tmm_orgid }}"
-
-    - name: Show control configure output
-      ansible.builtin.debug:
-        var: r_control_configure.stdout_lines
-      when: r_control_configure.stdout_lines is defined
-
-    - name: Save control configure output
-      ansible.builtin.copy:
-        content: "{{ r_control_configure.stdout | default(r_control_configure.stderr) | default(r_control_configure) }}"
-        dest: /tmp/control-configure.out
-      delegate_to: localhost
-      become: false
-
-    - name: Fail if control configure failed
-      ansible.builtin.fail:
-        msg: "Control configure phase failed"
-      when:
-        - r_control_configure.rc is defined
-        - r_control_configure.rc != 0
+    # --- Host-specific configure waves ---
+    - name: Run host-specific configure tasks
+      ansible.builtin.include_tasks:
+        file: "tasks/{{ inventory_hostname }}-configure.yml"

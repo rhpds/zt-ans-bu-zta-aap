@@ -1,0 +1,131 @@
+---
+# Central configure phase — wave-based parallel execution
+#
+# Replaces setup-central-configure.sh with dependency-aware parallel waves.
+# Each wave fires independent ansible-playbook calls via async, then waits
+# for all to complete before starting the next wave.
+#
+# Wave 1: configure-firewall (must open ports before external access)
+# Wave 2: vault, netbox, deploy-splunk, container-networking, opa-base (independent)
+# Wave 3: vault-ssh, integrate-splunk, spire, aap-podman-gateway-prereqs (depend on wave 2)
+#
+# BUG FIX: The original script ran integrate-splunk BEFORE deploy-splunk.
+# This reorder places deploy-splunk in Wave 2 and integrate-splunk in Wave 3.
+
+- name: Set playbook directory and environment
+  ansible.builtin.set_fact:
+    workshop_dir: /tmp/zta-workshop-aap
+    playbook_env:
+      ANSIBLE_HOST_KEY_CHECKING: "False"
+      NETBOX_TOKEN: "0123456789abcdef0123456789abcdef01234567"
+      ANSIBLE_CONFIG: /tmp/zta-workshop-aap/ansible.cfg
+
+# ---------------------------------------------------------------------------
+# Wave 1: Firewall — must complete before external port access
+# ---------------------------------------------------------------------------
+- name: "Wave 1: configure firewall"
+  ansible.builtin.shell: >-
+    ansible-playbook -i inventory/hosts.ini setup/configure-firewall.yml
+  args:
+    chdir: "{{ workshop_dir }}"
+  environment: "{{ playbook_env }}"
+  register: wave1_result
+
+- name: "Wave 1: log output on failure"
+  ansible.builtin.debug:
+    var: wave1_result.stdout_lines
+  when: wave1_result.rc != 0
+
+# ---------------------------------------------------------------------------
+# Wave 2: Independent playbooks — no cross-dependencies
+#   - configure-vault            (targets vault VM)
+#   - configure-netbox           (targets localhost → NetBox API)
+#   - deploy-splunk              (targets central)
+#   - configure-container-networking (targets central)
+#   - configure-opa-base         (targets central)
+# ---------------------------------------------------------------------------
+- name: "Wave 2: launch parallel independent playbooks"
+  ansible.builtin.shell: >-
+    ansible-playbook -i inventory/hosts.ini setup/{{ item }}
+  args:
+    chdir: "{{ workshop_dir }}"
+  environment: "{{ playbook_env }}"
+  loop:
+    - configure-container-networking.yml
+    - configure-vault.yml
+    - configure-netbox.yml
+    - "deploy-splunk.yml --skip-tags eda_webhook"
+    - configure-opa-base.yml
+  async: 600
+  poll: 0
+  register: wave2_jobs
+
+- name: "Wave 2: wait for all to complete"
+  ansible.builtin.async_status:
+    jid: "{{ item.ansible_job_id }}"
+  loop: "{{ wave2_jobs.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  register: wave2_results
+  until: wave2_results.finished
+  retries: 60
+  delay: 10
+
+- name: "Wave 2: report failures"
+  ansible.builtin.fail:
+    msg: >-
+      Wave 2 playbook failed: {{ item.item.item }}
+      — stdout: {{ item.stdout_lines | default([]) | last | default('') }}
+      — rc: {{ item.rc | default('unknown') }}
+  loop: "{{ wave2_results.results }}"
+  loop_control:
+    label: "{{ item.item.item }}"
+  when: item.rc | default(0) != 0
+
+# ---------------------------------------------------------------------------
+# Wave 3: Dependent playbooks — require Wave 2 services
+#   - configure-vault-ssh        (needs configure-vault)
+#   - integrate-splunk           (needs deploy-splunk)
+#   - deploy-spire               (needs firewall ports)
+#   - configure-aap-podman-gateway-prereqs (targets control, independent of central)
+# ---------------------------------------------------------------------------
+- name: "Wave 3: launch parallel dependent playbooks"
+  ansible.builtin.shell: >-
+    ansible-playbook -i inventory/hosts.ini setup/{{ item }}
+  args:
+    chdir: "{{ workshop_dir }}"
+  environment: "{{ playbook_env }}"
+  loop:
+    - configure-vault-ssh.yml
+    - "integrate-splunk.yml --skip-tags arista_syslog,wazuh_splunk"
+    - deploy-spire.yml
+    - configure-aap-podman-gateway-prereqs.yml
+  async: 600
+  poll: 0
+  register: wave3_jobs
+
+- name: "Wave 3: wait for all to complete"
+  ansible.builtin.async_status:
+    jid: "{{ item.ansible_job_id }}"
+  loop: "{{ wave3_jobs.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  register: wave3_results
+  until: wave3_results.finished
+  retries: 60
+  delay: 10
+
+- name: "Wave 3: report failures"
+  ansible.builtin.fail:
+    msg: >-
+      Wave 3 playbook failed: {{ item.item.item }}
+      — stdout: {{ item.stdout_lines | default([]) | last | default('') }}
+      — rc: {{ item.rc | default('unknown') }}
+  loop: "{{ wave3_results.results }}"
+  loop_control:
+    label: "{{ item.item.item }}"
+  when: item.rc | default(0) != 0
+
+- name: Central configure phase complete
+  ansible.builtin.debug:
+    msg: "Central configure phase complete (3 waves)"

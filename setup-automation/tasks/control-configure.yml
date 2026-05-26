@@ -1,0 +1,209 @@
+---
+# Control configure phase — wave-based parallel execution
+#
+# Replaces setup-control-configure.sh with dependency-aware parallel waves.
+#
+# Wave 1: credentials, dashboard, inventory-1st (independent)
+# Wave 2: project + EE (needs credentials + inventory)
+# Wave 3: inventory-2nd (needs project sync)
+# Wave 4: netbox + templates (needs inventory + project + credentials)
+# Wave 5: EDA chain (sequential — eda then splunk-eda)
+#
+# AAP readiness check and OAuth token generation are handled inline before
+# the waves start, replacing the bash curl loops from setup-control-configure.sh.
+
+- name: Set playbook directory
+  ansible.builtin.set_fact:
+    workshop_dir: /tmp/zta-workshop-aap
+
+# ---------------------------------------------------------------------------
+# Pre-wave: Wait for AAP and generate OAuth token
+# ---------------------------------------------------------------------------
+- name: Wait for AAP controller to be ready
+  ansible.builtin.uri:
+    url: "https://control.zta.lab/api/controller/v2/ping/"
+    user: admin
+    password: "ansible123!"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: 200
+  register: r_aap_ready
+  until: r_aap_ready.status == 200
+  retries: 60
+  delay: 10
+
+# awx.awx:24.6.1 tries to generate tokens at /api/v2/tokens/ which is 404
+# on AAP 2.6 Gateway. Pre-generating a token bypasses this.
+- name: Generate AAP OAuth token
+  ansible.builtin.uri:
+    url: "https://control.zta.lab/api/controller/v2/tokens/"
+    method: POST
+    user: admin
+    password: "ansible123!"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: json
+    body:
+      description: setup-automation
+      application: null
+      scope: write
+    status_code: 201
+  register: r_token
+
+- name: Store token for playbook extra-vars
+  ansible.builtin.set_fact:
+    token_var: "controller_oauth_token={{ r_token.json.token }}"
+
+- name: Set control playbook environment
+  ansible.builtin.set_fact:
+    control_env:
+      ANSIBLE_HOST_KEY_CHECKING: "False"
+      ANSIBLE_LOCALHOST_WARNING: "False"
+      ANSIBLE_INVENTORY_UNPARSED_WARNING: "False"
+
+# ---------------------------------------------------------------------------
+# Wave 1: Independent playbooks
+#   - configure-aap-credentials  (AAP + Vault API)
+#   - deploy-dashboard           (targets central, fully independent)
+#   - configure-aap-inventory    (1st run, static only)
+# ---------------------------------------------------------------------------
+- name: "Wave 1: launch parallel independent playbooks"
+  ansible.builtin.shell: >-
+    ansible-playbook -i inventory/hosts.ini setup/{{ item }} -e "{{ token_var }}"
+  args:
+    chdir: "{{ workshop_dir }}"
+  environment: "{{ control_env }}"
+  loop:
+    - configure-aap-credentials.yml
+    - deploy-dashboard.yml
+    - configure-aap-inventory.yml
+  async: 300
+  poll: 0
+  register: wave1_jobs
+
+- name: "Wave 1: wait for all to complete"
+  ansible.builtin.async_status:
+    jid: "{{ item.ansible_job_id }}"
+  loop: "{{ wave1_jobs.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  register: wave1_results
+  until: wave1_results.finished
+  retries: 30
+  delay: 10
+
+- name: "Wave 1: report failures"
+  ansible.builtin.fail:
+    msg: >-
+      Wave 1 playbook failed: {{ item.item.item }}
+      — rc: {{ item.rc | default('unknown') }}
+  loop: "{{ wave1_results.results }}"
+  loop_control:
+    label: "{{ item.item.item }}"
+  when: item.rc | default(0) != 0
+
+# ---------------------------------------------------------------------------
+# Wave 2: Project + Execution Environment (needs credentials + inventory)
+# ---------------------------------------------------------------------------
+- name: "Wave 2: configure project and execution environment"
+  ansible.builtin.shell: >-
+    ansible-playbook -i inventory/hosts.ini setup/configure-aap-project.yml
+    --tags ee,project -e "{{ token_var }}"
+  args:
+    chdir: "{{ workshop_dir }}"
+  environment: "{{ control_env }}"
+  register: wave2_result
+
+- name: "Wave 2: log output on failure"
+  ansible.builtin.debug:
+    var: wave2_result.stdout_lines
+  when: wave2_result.rc != 0
+
+# ---------------------------------------------------------------------------
+# Wave 3: Refresh inventory (needs project sync from wave 2)
+# ---------------------------------------------------------------------------
+- name: "Wave 3: refresh inventory with SCM source"
+  ansible.builtin.shell: >-
+    ansible-playbook -i inventory/hosts.ini setup/configure-aap-inventory.yml
+    -e "{{ token_var }}"
+  args:
+    chdir: "{{ workshop_dir }}"
+  environment: "{{ control_env }}"
+  register: wave3_result
+
+- name: "Wave 3: log output on failure"
+  ansible.builtin.debug:
+    var: wave3_result.stdout_lines
+  when: wave3_result.rc != 0
+
+# ---------------------------------------------------------------------------
+# Wave 4: NetBox + templates (needs inventory + project + credentials)
+# ---------------------------------------------------------------------------
+- name: "Wave 4: launch parallel AAP config playbooks"
+  ansible.builtin.shell: >-
+    ansible-playbook -i inventory/hosts.ini setup/{{ item }} -e "{{ token_var }}"
+  args:
+    chdir: "{{ workshop_dir }}"
+  environment: "{{ control_env }}"
+  loop:
+    - configure-aap-netbox.yml
+    - "configure-aap-project.yml --tags templates --skip-tags eda"
+  async: 300
+  poll: 0
+  register: wave4_jobs
+
+- name: "Wave 4: wait for all to complete"
+  ansible.builtin.async_status:
+    jid: "{{ item.ansible_job_id }}"
+  loop: "{{ wave4_jobs.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  register: wave4_results
+  until: wave4_results.finished
+  retries: 30
+  delay: 10
+
+- name: "Wave 4: report failures"
+  ansible.builtin.fail:
+    msg: >-
+      Wave 4 playbook failed: {{ item.item.item }}
+      — rc: {{ item.rc | default('unknown') }}
+  loop: "{{ wave4_results.results }}"
+  loop_control:
+    label: "{{ item.item.item }}"
+  when: item.rc | default(0) != 0
+
+# ---------------------------------------------------------------------------
+# Wave 5: EDA chain (sequential — eda config then splunk-eda wiring)
+# ---------------------------------------------------------------------------
+- name: "Wave 5: configure EDA project and decision environment"
+  ansible.builtin.shell: >-
+    ansible-playbook -i inventory/hosts.ini setup/configure-aap-project.yml
+    --tags eda -e "{{ token_var }}"
+  args:
+    chdir: "{{ workshop_dir }}"
+  environment: "{{ control_env }}"
+  register: wave5a_result
+
+- name: "Wave 5a: log output on failure"
+  ansible.builtin.debug:
+    var: wave5a_result.stdout_lines
+  when: wave5a_result.rc != 0
+
+- name: "Wave 5: configure Splunk EDA webhook"
+  ansible.builtin.shell: >-
+    ansible-playbook -i inventory/hosts.ini setup/configure-splunk-eda.yml
+    -e "{{ token_var }}"
+  args:
+    chdir: "{{ workshop_dir }}"
+  environment: "{{ control_env }}"
+  register: wave5b_result
+
+- name: "Wave 5b: log output on failure"
+  ansible.builtin.debug:
+    var: wave5b_result.stdout_lines
+  when: wave5b_result.rc != 0
+
+- name: Control configure phase complete
+  ansible.builtin.debug:
+    msg: "Control configure phase complete (5 waves)"
