@@ -22,9 +22,7 @@ Deploying an app is where **identity (who)**, **policy (may they)**, **secrets (
 ====
 
 
-== Exercise 2.1
-[%collapsible]
-=====
+== Exercise 2.1 — Build the deployment workflow
 
 [TIP]
 .Separation of concerns in templates
@@ -49,7 +47,7 @@ Click the 'Add step' button to begin. On the new menu on the right, select 'Job 
 
 image::s02p01.png[Workflow visualizer showing Check DB policy template as first step,link=self,window=blank]
 
-This template executes first and checks with OPA to ensure the job runs in policy. Next, add to the workflow. Right click on the kebab menu on the template you just added. <> PICTURE
+This template executes first and checks with OPA to ensure the job runs in policy. Next, add to the workflow. Right click on the kebab menu on the template you just added.
 
 Select 'add Step and link', choose the 'Create DB Credential' template this time, and under Status select 'Run on success'. This ensures the job only runs if the previous step was successful. Click Next and Finish.
 
@@ -67,7 +65,7 @@ Click 'Save' and then on the 'X' on the top right of the pane, this takes you to
 image::s02p04.png[Team access configuration showing role assignments for workflow template,link=self,window=blank]
 
 
-The roles are now allocated. You can log out of the platform. 
+The roles are now allocated. You can log out of the platform.
 
 [NOTE]
 .AAP workflows as auditable trust chains
@@ -81,11 +79,9 @@ The roles are now allocated. You can log out of the platform.
 **Check DB Access Policy runs first** on purpose: if the human (via AAP) isn't entitled to database credentials, the workflow **never touches Vault**. That's *defense in depth*—the secret manager isn't a substitute for authorization. In breach terms, an attacker who tricks someone into clicking "deploy" still hits a **PDP (OPA)** before any **secret issuance**.
 ====
 
-=====
 
-== Exercise 2.2
-[%collapsible]
-=====
+== Exercise 2.2 — Deny and allow with OPA
+
 . Log in to AAP as `neteng`. Notice you have no permissions. You're just a member of the Organization.
 
 . Navigate to the IDM tab and log in with the admin details.
@@ -96,7 +92,7 @@ image::s02p05.png[IdM interface showing user group assignment for neteng user,li
 
 
 
-Navigate back to the controller. Log out and log back in as the neteng user. 
+Navigate back to the controller. Log out and log back in as the neteng user.
 
 [NOTE]
 .AAP + IdM: real-time RBAC without local accounts
@@ -183,7 +179,7 @@ ok: [ceos2] => {
 }
 ----
 
-You can verify this on the switch. Open the 'Terminal' tab and ssh into the switch. We will see the network policy that has been applied. 
+You can verify this on the switch. Open the 'Terminal' tab and ssh into the switch. We will see the network policy that has been applied.
 
 [source,role="execute"]
 ----
@@ -207,7 +203,7 @@ Exit the switch, and ssh into the DB.
 ssh -p 2022 rhel@192.168.1.11
 ----
 
-NOTE: Authentication details admin/ansible123!
+NOTE: Authentication details: rhel/ansible123!
 
 View the dynamic usernames that have been created:
 
@@ -224,13 +220,16 @@ View the dynamic usernames that have been created:
 Even with valid DB credentials, **network policy** still limits *where* connections may originate. The Arista step models **segmentation** that's common in ZTA: secrets prove *who the app is*, ACLs constrain *which paths are valid*. An attacker with stolen creds from a random laptop should still fail if the fabric only permits the app tier IP.
 ====
 
-After 5 minutes have passed, check the status of the application. Navigate back to 'Terminal' and run the same curl. 
+After 5 minutes have passed, check the status of the application. Navigate back to 'Terminal' and run the same curl.
 
 
 [source,role="execute"]
 ----
 curl -s http://app.zta.lab:8081/health | python3 -m json.tool
+----
 
+[source]
+----
 {
     "database": false,
     "status": "degraded",
@@ -238,9 +237,7 @@ curl -s http://app.zta.lab:8081/health | python3 -m json.tool
 }
 ----
 
-The application is no longer healthy. The time-limited credentials have expired. Refresh the 'Global Telemetry Platform' web page and you'll see a database connection error. 
-
-=====
+The application is no longer healthy. The time-limited credentials have expired. Refresh the 'Global Telemetry Platform' web page and you'll see a database connection error.
 
 [TIP]
 .The 503 is Zero Trust working as intended
@@ -266,9 +263,9 @@ TTL expiry is a feature, not a bug: it forces **rotation**, **re-authorization**
 
 _ZTA concept: *Policy Decision Point integration* -- querying OPA from a playbook turns an external policy engine into a mandatory trust gate that Ansible enforces inline._
 
-This exercise gives you a **skeleton playbook** with the IdM group lookup already done. Your job is to write the three missing tasks that query OPA, display the result, and enforce the decision. 
+This exercise gives you a **skeleton playbook** with the IdM group lookup already done. Your job is to write the three missing tasks that query OPA, display the result, and enforce the decision.
 
-NOTE: Login as ztauser on the Ansible Automation Platform and login to Gitea with details: 'gitea/ansible123'
+NOTE: Login as ztauser on the Ansible Automation Platform and login to Gitea with details: 'gitea/ansible123!'
 
 [IMPORTANT]
 .What to do
@@ -278,7 +275,7 @@ NOTE: Login as ztauser on the Ansible Automation Platform and login to Gitea wit
 . Uncomment each task and replace the `FILL_IN` placeholders with the correct values.
 
 . In AAP, navigate to Automation Execution -> Projects and sync the ZTA Workshop Project.
-. In AAP, create a new job template called **Check DB Policy** pointing to your skeleton playbook. Use the same inventory (ZTA Lab Inventory), Project (ZTA Workshop) and Playbook (section2/playbooks/check-db-policy-student.yml). 
+. In AAP, create a new job template called **Check DB Policy** pointing to your skeleton playbook. Use the same inventory (ZTA Lab Inventory), Project (ZTA Workshop) and Playbook (section2/playbooks/check-db-policy-student.yml).
 . Add the teams to the template to be able to execute it.
 . Launch as `neteng`—expect OPA **DENIED**.
 . Launch as `appdev`—expect OPA **ALLOWED**.
@@ -327,7 +324,7 @@ This exercise gives you a **deliberately broken** deployment playbook with four 
 These are **real-world** misconfigurations that break Zero Trust guarantees. Bug 1 (`no_log` missing) means ephemeral credentials end up in logs, defeating their short-lived nature. Bug 2 (`mode 0644`) violates least privilege. Bug 3 (hardcoded password in systemd) is the classic "someone put a static cred in for debugging and forgot." Bug 4 (wrong port) means the deployment appears to succeed but nobody verified the app actually works. ZTA demands that **every link in the chain** is correct, not just the identity and policy layers.
 ====
 
-You can now proceed to the next section. 
+You can now proceed to the next section.
 
 
 == Corrected Policy Hint - Write the OPA policy check:
@@ -336,7 +333,7 @@ You can now proceed to the next section.
 | url: "FILL_IN" | "{{ opa_url }}/v1/data/zta/db_access/decision"
 | method: "FILL_IN" | POST
 | user: "FILL_IN" | "{{ requesting_user }}"
-| user_groups: "FILL_IN" | 	"{{ requesting_groups }}"
+| user_groups: "FILL_IN" | "{{ requesting_groups }}"
 | target_database: "FILL_IN" | "{{ db_name }}"
 | requested_permissions: "FILL_IN" | ["SELECT", "INSERT", "UPDATE"]
 | assert that: "FILL_IN" | opa_decision.json.result.allow | default(false)
@@ -350,4 +347,3 @@ You can now proceed to the next section.
 | Bug 3 | remove the entire "Set database password in systemd unit" task
 | Bug 4 | fix the health check port from 80 to {{ app_port }}
 |===
-
