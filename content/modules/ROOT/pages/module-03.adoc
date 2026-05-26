@@ -19,13 +19,13 @@ In Sections 1–2, OPA checks ran **inside** workflows—a playbook task queried
 [IMPORTANT]
 .Platform enforcement vs playbook checks
 ====
-**AAP itself** asks OPA before starting the job. That’s **Policy as Code on the automation platform**: even a playbook with *no* internal `uri` call to OPA can’t bypass the gate, because the **PEP (AAP)** refuses to enqueue the run. This models **separation of duties**—only the right **team** may even *attempt* patching templates—and shrinks insider “I’ll run ansible by hand” if your production design wires the same gateway for all changes.
+**AAP itself** asks OPA before starting the job. That's **Policy as Code on the automation platform**: even a playbook with *no* internal `uri` call to OPA can't bypass the gate, because the **PEP (AAP)** refuses to enqueue the run. This models **separation of duties**—only the right **team** may even *attempt* patching templates—and shrinks insider "I'll run ansible by hand" if your production design wires the same gateway for all changes.
 
-AAP 2.6 sends the full job context to OPA, including `created_by.teams` (the user’s AAP team memberships, populated via LDAP). The policy checks these teams—not raw IdM groups—for its decisions.
+AAP 2.6 sends the full job context to OPA, including `created_by.teams` (the user's AAP team memberships, populated via LDAP). The policy checks these teams—not raw IdM groups—for its decisions.
 ====
 
 |===
-| Template pattern | Required AAP team 
+| Template pattern | Required AAP team
 | Patch | Infrastructure or Security
 | VLAN / Network | Infrastructure
 | Deploy, Credential, Application | Applications or DevOps
@@ -35,12 +35,10 @@ AAP 2.6 sends the full job context to OPA, including `created_by.teams` (the use
 [TIP]
 .Why template names matter
 ====
-The gateway policy uses **resource metadata** (here, template name substrings) as a coarse **risk classifier**. Production policies often add **inventory tags, execution environments, survey variables, or SAML claims**—the idea is the same: **encode risk in attributes** the PDP can evaluate consistently, not in tribal knowledge about “who is allowed to click what.”
+The gateway policy uses **resource metadata** (here, template name substrings) as a coarse **risk classifier**. Production policies often add **inventory tags, execution environments, survey variables, or SAML claims**—the idea is the same: **encode risk in attributes** the PDP can evaluate consistently, not in tribal knowledge about "who is allowed to click what."
 ====
 
-== Exercise 3.1
-[%collapsible]
-====           
+== Exercise 3.1 — Configure Policy as Code on AAP
 
 To configure AAP, navigate to 'Settings' -> 'Automation Execution' -> 'Policy'.
 Configure OPA on the platform. Select 'Edit' and provide the following details:
@@ -50,12 +48,12 @@ Configure OPA on the platform. Select 'Edit' and provide the following details:
 | OPA Hostname | 192.168.1.11
 | Port | 8181
 | OPA Authentication Type | None
-| OPA custom athentication headers | <blank>
+| OPA custom authentication headers | <blank>
 | OPA request timeout | 5
 | OPA request retry count | 2
 |===
 
-NOTE: We are using an IP Address here due to a dns bug with the containers.
+NOTE: We are using an IP Address here due to a DNS bug with the containers.
 
 Next, configure the Organization to use policy enforcement. Navigate to 'Access Management' -> 'Organizations'. Click on 'Default' then click 'Edit organization'. Under Policy enforcement enter: **aap/gateway/decision**. Click Next and Finish.
 
@@ -66,7 +64,7 @@ Log in as appdev and navigate to Templates.
 
 Execute the 'Apply Security Patch' template. The survey will refer to which server and you can keep it set to 'app'. The Policy as Code operates and the job fails.
 
-[source:bash]
+[source,bash]
 ----
 This job cannot be executed due to a policy violation or error. See the following details:
 {'Violations': {'Organization': ["user 'appdev' is not in an authorised team "
@@ -74,7 +72,6 @@ This job cannot be executed due to a policy violation or error. See the followin
 '{"Infrastructure", "Security"}, has: '
 '{"Applications"})']}}
 ----
-====
 
 [TIP]
 .Stronger than hiding buttons
@@ -82,12 +79,11 @@ This job cannot be executed due to a policy violation or error. See the followin
 Traditional RBAC might hide templates or rely on operator discipline. **Policy as Code** makes denial **explicit and uniform**—the PDP answer can be the same for UI, API, and integrated CI—reducing **policy drift** between teams and making exceptions visible in Git-tracked Rego rather than tribal knowledge.
 ====
 
-== Exercise 3.2
-[%collapsible]
-====         
+== Exercise 3.2 — Authorised patching
+
 Log in to the platform as a user (netadmin) that's in the Infrastructure team or add appdev to the infrastructure team.
 
-Trigger the 'Apply Security Patch' template. It should succeed. 
+Trigger the 'Apply Security Patch' template. It should succeed.
 
 Review the template to see the OPA interaction:
 
@@ -105,12 +101,11 @@ ok: [app] => {
 ]
 }
 ----
-====
 
 [TIP]
 .Identity lifecycle, not ticket forever
 ====
-Granting `team-infrastructure` in IdM is how the organization says “this identity may initiate high-risk automation.” Revoking the group later **closes the gate** without redeploying AAP—**continuous authorization** tied to the directory.
+Granting `team-infrastructure` in IdM is how the organization says "this identity may initiate high-risk automation." Revoking the group later **closes the gate** without redeploying AAP—**continuous authorization** tied to the directory.
 ====
 
 [TIP]
@@ -131,7 +126,7 @@ sudo sshd -T | grep -E 'permitrootlogin|maxauthtries|permitemptypasswords'
 [TIP]
 .Verify outcomes, not intentions
 ====
-Spot-checking `sshd -T` and audit rules proves **the control landed**. Zero Trust operations depend on **observable state** (what the host actually enforces), not only on “the job was green.”
+Spot-checking `sshd -T` and audit rules proves **the control landed**. Zero Trust operations depend on **observable state** (what the host actually enforces), not only on "the job was green."
 ====
 
 
