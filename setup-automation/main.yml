@@ -99,8 +99,8 @@
 # Phase 3: Host-specific bootstrap in parallel (~300s, netbox bottleneck)
 # vault: license + unseal
 # netbox: Docker + compose + wait-for-ready
-# central: packages, Keycloak, IPA, first 4 independent playbooks
-# control: packages, collections install
+# central: packages, Keycloak, IPA, companion playbooks, container pre-install
+# control: packages, collections install, companion repo clone
 - name: Host-specific bootstrap
   hosts: all:!localhost
   gather_facts: false
@@ -109,75 +109,14 @@
   vars_files:
     - ../config/secrets.yaml
   vars:
-    satellite_url: "{{ lookup('ansible.builtin.env', 'SATELLITE_URL') }}"
-    satellite_org: "{{ lookup('ansible.builtin.env', 'SATELLITE_ORG') }}"
-    satellite_activationkey: "{{ lookup('ansible.builtin.env', 'SATELLITE_ACTIVATIONKEY') }}"
     guid: "{{ lookup('ansible.builtin.env', 'GUID') }}"
     domain: "{{ lookup('ansible.builtin.env', 'DOMAIN') }}"
+    ah_token: "{{ ahtoken }}"
+    vault_license: "{{ vaultlic }}"
   tasks:
-    - name: Create setup-scripts directory
-      ansible.builtin.file:
-        path: /tmp/setup-scripts/
-        state: directory
-        mode: '0755'
-
-    - name: Check if bootstrap script exists
-      ansible.builtin.stat:
-        path: "{{ playbook_dir }}/setup-{{ inventory_hostname }}.sh"
-      delegate_to: localhost
-      become: false
-      register: r_script_test
-
-    - name: Copy bootstrap script
-      ansible.builtin.copy:
-        src: "{{ playbook_dir }}/setup-{{ inventory_hostname }}.sh"
-        dest: "/tmp/setup-scripts/setup-{{ inventory_hostname }}.sh"
-        mode: '0755'
-      when: r_script_test.stat.exists
-
-    - name: Execute bootstrap script
-      ansible.builtin.shell: |
-        LOG=/tmp/setup-scripts/setup-{{ inventory_hostname }}-$(date +%Y%m%d-%H%M%S).log
-        sh -x /tmp/setup-scripts/setup-{{ inventory_hostname }}.sh > "$LOG" 2>&1
-        SCRIPT_RC=$?
-        ln -sf "$LOG" /tmp/setup-scripts/setup-{{ inventory_hostname }}-latest.log
-        exit $SCRIPT_RC
-      when: r_script_test.stat.exists
-      register: r_result
-      environment:
-        SATELLITE_URL: "{{ satellite_url }}"
-        SATELLITE_ORG: "{{ satellite_org }}"
-        SATELLITE_ACTIVATIONKEY: "{{ satellite_activationkey }}"
-        GUID: "{{ guid }}"
-        DOMAIN: "{{ domain }}"
-        REG_KEY: "{{ reg_username }}"
-        REG_PASS: "{{ reg_password }}"
-        SSH_KEY: "{{ ssh_key }}"
-        VAULT_LIC: "{{ vaultlic }}"
-        AH_TOKEN: "{{ ahtoken }}"
-        TMM_ID: "{{ tmm_activation }}"
-        TMM_ORG: "{{ tmm_orgid }}"
-
-    - name: Show bootstrap output
-      ansible.builtin.debug:
-        var: r_result.stdout_lines
-      when: r_result is defined and r_result.stdout_lines is defined
-
-    - name: Save bootstrap output
-      ansible.builtin.copy:
-        content: "{{ r_result.stdout | default(r_result.stderr) | default(r_result) }}"
-        dest: "/tmp/{{ inventory_hostname }}-bootstrap.out"
-      delegate_to: localhost
-      become: false
-      when: r_result is defined
-
-    - name: Fail if bootstrap failed
-      ansible.builtin.fail:
-        msg: "Bootstrap failed for {{ inventory_hostname }}"
-      when:
-        - r_result is defined
-        - r_result.rc is defined
-        - r_result.rc != 0
+    - name: Run host-specific bootstrap
+      ansible.builtin.include_tasks:
+        file: "tasks/{{ inventory_hostname }}-bootstrap.yml"
 
 # Phases 4+5: Central + Control configure in parallel (~200s, was ~380s sequential)
 #

@@ -1,0 +1,139 @@
+---
+# NetBox node bootstrap — replaces setup-netbox.sh
+#
+# Installs Docker, clones netbox-docker, deploys via docker-compose,
+# and waits for NetBox to become healthy and responsive.
+
+- name: Install base packages
+  ansible.builtin.dnf:
+    name:
+      - dnf-utils
+      - git
+      - nano
+    state: present
+
+- name: Check if Docker repo exists
+  ansible.builtin.stat:
+    path: /etc/yum.repos.d/docker-ce.repo
+  register: r_docker_repo
+
+- name: Add Docker CE repo
+  ansible.builtin.shell: >-
+    dnf config-manager --add-repo
+    https://download.docker.com/linux/centos/docker-ce.repo
+  when: not r_docker_repo.stat.exists
+  changed_when: true
+
+- name: Install Docker packages
+  ansible.builtin.dnf:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+
+- name: Enable and start Docker
+  ansible.builtin.systemd:
+    name: docker
+    enabled: true
+    state: started
+
+- name: Wait for Docker daemon to be ready
+  ansible.builtin.command: docker info
+  register: r_docker_info
+  retries: 10
+  delay: 2
+  until: r_docker_info.rc == 0
+  changed_when: false
+
+- name: Clone netbox-docker repo
+  ansible.builtin.git:
+    repo: https://github.com/nmartins0611/netbox-docker.git
+    dest: /tmp/netbox-docker
+    version: main
+    update: false
+
+- name: Write docker-compose override
+  ansible.builtin.copy:
+    dest: /tmp/netbox-docker/docker-compose.override.yml
+    mode: "0644"
+    content: |
+      services:
+        netbox:
+          ports:
+            - "8000:8080"
+          environment:
+            ALLOWED_HOSTS: "*"
+            POSTGRES_USER: "netbox"
+            POSTGRES_PASSWORD: "netbox"
+            POSTGRES_DB: "netbox"
+            POSTGRES_HOST: "postgres"
+            REDIS_HOST: "redis"
+            SKIP_SUPERUSER: "false"
+            SUPERUSER_EMAIL: "admin@example.com"
+            SUPERUSER_PASSWORD: "netbox"
+            SUPERUSER_NAME: "admin"
+          healthcheck:
+            test: ["CMD-SHELL", "curl -f http://localhost:8080/login/ || exit 1"]
+            start_period: 300s
+            interval: 15s
+            timeout: 5s
+            retries: 3
+
+- name: Check if NetBox containers are running
+  ansible.builtin.shell: docker compose ps | grep -q "netbox.*Up"
+  args:
+    chdir: /tmp/netbox-docker
+  register: r_netbox_running
+  failed_when: false
+  changed_when: false
+
+- name: Deploy NetBox containers
+  when: r_netbox_running.rc != 0
+  block:
+    - name: Pull NetBox images
+      ansible.builtin.shell: docker compose pull
+      args:
+        chdir: /tmp/netbox-docker
+      register: r_pull
+      retries: 3
+      delay: 5
+      until: r_pull.rc == 0
+      changed_when: true
+
+    - name: Start NetBox container
+      ansible.builtin.shell: docker compose up -d netbox
+      args:
+        chdir: /tmp/netbox-docker
+      changed_when: true
+
+    - name: Wait for NetBox container to become healthy
+      ansible.builtin.shell: >-
+        docker inspect --format='{{ '{{' }}.State.Health.Status{{ '}}' }}'
+        netbox-docker-netbox-1
+      register: r_health
+      retries: 60
+      delay: 5
+      until: r_health.stdout | trim == 'healthy'
+      changed_when: false
+
+    - name: Start NetBox worker
+      ansible.builtin.shell: docker compose up -d netbox-worker
+      args:
+        chdir: /tmp/netbox-docker
+      changed_when: true
+
+- name: Wait for NetBox HTTP to be responsive
+  ansible.builtin.uri:
+    url: http://localhost:8000
+    status_code: [200, 301, 302]
+  register: r_netbox_http
+  retries: 30
+  delay: 5
+  until: r_netbox_http.status | default(0) | int > 0
+
+- name: NetBox bootstrap complete
+  ansible.builtin.debug:
+    msg: "NetBox bootstrap complete — http://192.168.1.15:8000 (admin/netbox)"

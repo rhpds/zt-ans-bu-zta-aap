@@ -47,3 +47,4 @@ ansible.cfg
 **/.vscode
 **/.devcontainer
 **/devcontainer.json
+CLAUDE.md

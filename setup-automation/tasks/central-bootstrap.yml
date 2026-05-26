@@ -1,0 +1,307 @@
+---
+# Central node bootstrap — replaces setup-central.sh
+#
+# Installs Python libs, injects packages into app/db containers via
+# podman mount, clones companion repo, configures IPA rewrite,
+# recreates Keycloak container, runs companion playbooks, and
+# pre-installs container packages for subsequent phases.
+#
+# Required variables:
+#   ah_token  - Automation Hub token
+#   guid      - Lab GUID
+#   domain    - Lab domain
+
+- name: Set central environment facts
+  ansible.builtin.set_fact:
+    workshop_dir: /tmp/zta-workshop-aap
+    central_env:
+      ANSIBLE_HOST_KEY_CHECKING: "False"
+      NETBOX_TOKEN: "0123456789abcdef0123456789abcdef01234567"
+      ANSIBLE_CONFIG: /tmp/zta-workshop-aap/ansible.cfg
+
+- name: Write Ansible configuration with AH token
+  ansible.builtin.copy:
+    dest: ~/.ansible.cfg
+    mode: "0644"
+    content: |
+      [defaults]
+      [galaxy]
+      server_list = automation_hub, validated, galaxy
+      [galaxy_server.automation_hub]
+      url = https://console.redhat.com/api/automation-hub/content/published/
+      auth_url = https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token
+      token={{ ah_token }}
+      [galaxy_server.validated]
+      url = https://console.redhat.com/api/automation-hub/content/validated/
+      auth_url = https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token
+      token={{ ah_token }}
+      [galaxy_server.galaxy]
+      url=https://galaxy.ansible.com/
+      [ssh_connection]
+      ssh_args = -o ControlMaster=auto -o ControlPersist=60s
+      pipelining = True
+
+- name: Install Python packages
+  ansible.builtin.pip:
+    name:
+      - pynetbox
+      - paramiko
+    extra_args: --user
+
+# ---------------------------------------------------------------------------
+# Install ipa-client into app/db containers via podman mount
+# ---------------------------------------------------------------------------
+- name: Enable appstream repo for container package installs
+  ansible.builtin.shell: subscription-manager repos --enable rhel-9-for-x86_64-appstream-rpms 2>/dev/null || true
+  changed_when: false
+
+- name: Check which containers exist
+  ansible.builtin.shell: podman container exists {{ item }} && echo "exists" || echo "missing"
+  loop:
+    - app
+    - db
+  register: r_container_exists
+  changed_when: false
+
+- name: Install ipa-client into containers
+  ansible.builtin.shell: |
+    if podman exec {{ item.item }} rpm -q ipa-client &>/dev/null; then
+      echo "SKIP: ipa-client already installed"
+      exit 0
+    fi
+    podman stop {{ item.item }} 2>/dev/null || true
+    mnt=$(podman mount {{ item.item }})
+    dnf install --installroot="$mnt" --releasever=9 -y ipa-client
+    chroot "$mnt" rm -rf /var/log/dnf /var/cache/dnf
+    podman umount {{ item.item }}
+    podman start {{ item.item }}
+  loop: "{{ r_container_exists.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.stdout | trim == 'exists'
+  register: r_ipa_install
+  changed_when: "'SKIP' not in r_ipa_install.stdout | default('')"
+
+- name: Clean RHSM config in containers
+  ansible.builtin.shell: |
+    podman exec {{ item.item }} bash -c '
+      rm -f /etc/yum.repos.d/redhat.repo
+      sed -i "s/^enabled=1/enabled=0/" /etc/dnf/plugins/subscription-manager.conf 2>/dev/null || true
+      sed -i "s/^skip_if_unavailable=.*/skip_if_unavailable=True/" /etc/dnf/dnf.conf 2>/dev/null || true
+    '
+  loop: "{{ r_container_exists.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.stdout | trim == 'exists'
+  changed_when: false
+
+# ---------------------------------------------------------------------------
+# Clone companion automation repo
+# ---------------------------------------------------------------------------
+- name: Clone companion automation repo
+  ansible.builtin.git:
+    repo: https://github.com/nmartins0611/zta-workshop-aap.git
+    dest: /tmp/zta-workshop-aap
+    version: zta-container
+    update: true
+    force: false
+
+- name: Create Ansible runtime directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0700"
+  loop:
+    - /tmp/.ansible-cp
+    - /tmp/.ansible-fact-cache
+    - /root/.ansible/cp
+
+# ---------------------------------------------------------------------------
+# IPA rewrite configuration
+# ---------------------------------------------------------------------------
+- name: Check IPA rewrite config
+  ansible.builtin.shell: grep -q "RequestHeader set Host central.zta.lab" /etc/httpd/conf.d/ipa-rewrite.conf 2>/dev/null
+  register: r_ipa_rewrite
+  failed_when: false
+  changed_when: false
+
+- name: Write IPA rewrite config
+  ansible.builtin.copy:
+    dest: /etc/httpd/conf.d/ipa-rewrite.conf
+    mode: "0644"
+    content: |
+      # VERSION 7 - DO NOT REMOVE THIS LINE
+      RequestHeader set Host central.zta.lab
+      RequestHeader set Referer https://central.zta.lab/ipa/ui/
+      RewriteEngine on
+      RewriteRule ^/ipa/ui/js/freeipa/plugins.js$    /ipa/wsgi/plugins.py [PT]
+      RewriteCond %{HTTP_HOST}    ^ipa-ca.example.local$ [NC]
+      RewriteCond %{REQUEST_URI}  !^/ipa/crl
+      RewriteCond %{REQUEST_URI}  !^/(ca|kra|pki|acme)
+  when: r_ipa_rewrite.rc != 0
+  notify: Reload httpd
+
+- name: Check if httpd is running
+  ansible.builtin.systemd:
+    name: httpd
+  register: r_httpd_status
+  failed_when: false
+
+- name: Reload httpd if running and config changed
+  ansible.builtin.systemd:
+    name: httpd
+    state: reloaded
+  when:
+    - r_ipa_rewrite.rc != 0
+    - r_httpd_status.status.ActiveState | default('') == 'active'
+
+# ---------------------------------------------------------------------------
+# Recreate Keycloak container with lab-specific hostname
+# ---------------------------------------------------------------------------
+- name: Stop and remove existing Keycloak container
+  ansible.builtin.shell: |
+    podman stop keycloak 2>/dev/null || true
+    systemctl stop container-keycloak 2>/dev/null || true
+    systemctl kill container-keycloak 2>/dev/null || true
+    podman rm --force keycloak 2>/dev/null || true
+  changed_when: true
+
+- name: Create Keycloak container
+  ansible.builtin.shell: >-
+    podman create --name keycloak --restart=always
+    -p 8180:8080 -p 8543:8443
+    -e KEYCLOAK_ADMIN=admin
+    -e KEYCLOAK_ADMIN_PASSWORD=ansible123!
+    -e KC_HOSTNAME=keycloak-https-{{ guid }}.{{ domain }}
+    -e KC_HTTPS_CERTIFICATE_FILE=/opt/certs/server.crt
+    -e KC_HTTPS_CERTIFICATE_KEY_FILE=/opt/certs/server.key
+    -e KC_HTTP_ENABLED=true
+    -v /opt/keycloak/certs:/opt/certs:Z
+    registry.redhat.io/rhbk/keycloak-rhel9:24 start
+    --hostname=keycloak-https-{{ guid }}.{{ domain }}
+    --https-port=8443
+    --http-enabled=true
+    --proxy-headers forwarded
+  changed_when: true
+
+- name: Remove PIDFile from container-keycloak service
+  ansible.builtin.lineinfile:
+    path: /etc/systemd/system/container-keycloak.service
+    regexp: "^PIDFile"
+    state: absent
+  register: r_keycloak_service
+  failed_when: false
+
+- name: Reload systemd if service file changed
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: r_keycloak_service.changed | default(false)
+
+- name: Start Keycloak via systemd
+  ansible.builtin.systemd:
+    name: container-keycloak
+    state: started
+
+# ---------------------------------------------------------------------------
+# Copy ansible.cfg and run companion playbooks
+# ---------------------------------------------------------------------------
+- name: Copy ansible.cfg to /etc/ansible/
+  ansible.builtin.copy:
+    src: /tmp/zta-workshop-aap/ansible.cfg
+    dest: /etc/ansible/ansible.cfg
+    remote_src: true
+    mode: "0644"
+
+- name: Run configure-dns playbook
+  ansible.builtin.command: >-
+    ansible-playbook -i inventory/hosts.ini setup/configure-dns.yml
+  args:
+    chdir: "{{ workshop_dir }}"
+  environment: "{{ central_env }}"
+
+- name: Run enroll-idm-clients playbook
+  ansible.builtin.command: >-
+    ansible-playbook -i inventory/hosts.ini setup/enroll-idm-clients.yml
+  args:
+    chdir: "{{ workshop_dir }}"
+  environment: "{{ central_env }}"
+
+- name: Run deploy-central playbook
+  ansible.builtin.command: >-
+    ansible-playbook -i inventory/hosts.ini setup/deploy-central.yml --skip-tags keycloak
+  args:
+    chdir: "{{ workshop_dir }}"
+  environment: "{{ central_env }}"
+
+# ---------------------------------------------------------------------------
+# Pre-install container packages via podman mount
+# db: postgresql-server postgresql python3-psycopg2 rsyslog
+# app: python3 python3-pip python3-psycopg2 rsyslog
+# ---------------------------------------------------------------------------
+- name: Enable appstream repo for container pre-install
+  ansible.builtin.shell: subscription-manager repos --enable rhel-9-for-x86_64-appstream-rpms 2>/dev/null || true
+  changed_when: false
+
+- name: Pre-install packages into db container
+  ansible.builtin.shell: |
+    if podman exec db rpm -q postgresql-server &>/dev/null; then
+      echo "SKIP: packages already installed in db"
+      exit 0
+    fi
+    podman stop db 2>/dev/null || true
+    mnt=$(podman mount db)
+    dnf install --installroot="$mnt" --releasever=9 -y postgresql-server postgresql python3-psycopg2 rsyslog
+    chroot "$mnt" rm -rf /var/log/dnf /var/cache/dnf
+    podman umount db
+    podman start db
+  register: r_db_pkgs
+  changed_when: "'SKIP' not in r_db_pkgs.stdout"
+  when: (r_container_exists.results | selectattr('item', 'eq', 'db') | first).stdout | trim == 'exists'
+
+- name: Pre-install packages into app container
+  ansible.builtin.shell: |
+    if podman exec app rpm -q python3-psycopg2 &>/dev/null; then
+      echo "SKIP: packages already installed in app"
+      exit 0
+    fi
+    podman stop app 2>/dev/null || true
+    mnt=$(podman mount app)
+    dnf install --installroot="$mnt" --releasever=9 -y python3 python3-pip python3-psycopg2 rsyslog
+    chroot "$mnt" rm -rf /var/log/dnf /var/cache/dnf
+    podman umount app
+    podman start app
+  register: r_app_pkgs
+  changed_when: "'SKIP' not in r_app_pkgs.stdout"
+  when: (r_container_exists.results | selectattr('item', 'eq', 'app') | first).stdout | trim == 'exists'
+
+- name: Clean RHSM config in db and app containers
+  ansible.builtin.shell: |
+    podman exec {{ item }} bash -c '
+      rm -f /etc/yum.repos.d/redhat.repo
+      sed -i "s/^enabled=1/enabled=0/" /etc/dnf/plugins/subscription-manager.conf 2>/dev/null || true
+      sed -i "s/^skip_if_unavailable=.*/skip_if_unavailable=True/" /etc/dnf/dnf.conf 2>/dev/null || true
+    '
+  loop:
+    - db
+    - app
+  when: (r_container_exists.results | selectattr('item', 'eq', item) | first).stdout | trim == 'exists'
+  changed_when: false
+
+- name: Run deploy-db-app playbook
+  ansible.builtin.command: >-
+    ansible-playbook -i inventory/hosts.ini setup/deploy-db-app.yml
+  args:
+    chdir: "{{ workshop_dir }}"
+  environment: "{{ central_env }}"
+
+# ---------------------------------------------------------------------------
+# Cleanup temporary ansible config
+# ---------------------------------------------------------------------------
+- name: Remove temporary ansible.cfg
+  ansible.builtin.file:
+    path: ~/.ansible.cfg
+    state: absent
+
+- name: Central bootstrap complete
+  ansible.builtin.debug:
+    msg: "Central bootstrap complete"

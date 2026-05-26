@@ -1,0 +1,68 @@
+---
+# Vault node bootstrap — replaces setup-vault.sh
+#
+# The vault-rhel-image-1 VM ships pre-initialized with storage "file" and
+# a known unseal key. Only the license needs updating each deployment.
+#
+# Required variables:
+#   vault_license  - Vault Enterprise license string
+
+- name: Write Vault license file
+  ansible.builtin.copy:
+    content: "{{ vault_license }}"
+    dest: /etc/vault.d/vault.hclic
+    owner: vault
+    group: vault
+    mode: "0640"
+  register: r_vault_license
+
+- name: Show Vault version
+  ansible.builtin.command: vault version
+  changed_when: false
+  register: r_vault_version
+
+- name: Display Vault version
+  ansible.builtin.debug:
+    msg: "{{ r_vault_version.stdout }}"
+
+- name: Restart Vault to pick up license
+  ansible.builtin.systemd:
+    name: vault
+    state: restarted
+  when: r_vault_license.changed
+
+- name: Wait for Vault to be listening
+  ansible.builtin.wait_for:
+    port: 8200
+    delay: 5
+    timeout: 60
+
+- name: Verify Vault service is running
+  ansible.builtin.systemd:
+    name: vault
+  register: r_vault_service
+  failed_when: r_vault_service.status.ActiveState != 'active'
+
+- name: Check Vault seal status
+  ansible.builtin.command: vault status -address=http://127.0.0.1:8200 -format=json
+  register: r_vault_status
+  failed_when: false
+  changed_when: false
+
+- name: Unseal Vault
+  ansible.builtin.command: >-
+    vault operator unseal -address=http://127.0.0.1:8200 -tls-skip-verify
+    1c6a637e70172e3c249f77b653fb64a820749864cad7f5aa7ab6d5aca5197ec5
+  register: r_unseal
+  retries: 3
+  delay: 5
+  until: r_unseal.rc == 0
+  when: (r_vault_status.stdout | default('{}') | from_json).sealed | default(true)
+
+- name: Verify Vault is unsealed
+  ansible.builtin.command: vault status -address=http://127.0.0.1:8200
+  changed_when: false
+
+- name: Vault bootstrap complete
+  ansible.builtin.debug:
+    msg: "Vault bootstrap complete — http://192.168.1.12:8200"

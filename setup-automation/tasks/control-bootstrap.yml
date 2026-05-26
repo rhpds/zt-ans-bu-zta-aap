@@ -1,0 +1,167 @@
+---
+# Control node bootstrap — replaces setup-control.sh
+#
+# Configures subscription-manager, installs packages, clones the companion
+# automation repo, installs Ansible collections, and prepares the control
+# node for AAP configuration.
+#
+# Required variables:
+#   ah_token  - Automation Hub token
+#   guid      - Lab GUID
+#   domain    - Lab domain
+
+- name: Check subscription-manager manage_repos
+  ansible.builtin.shell: >-
+    subscription-manager config --list | grep -oP 'manage_repos\s*=\s*\[\K[^\]]+' || echo "unknown"
+  register: r_manage_repos
+  changed_when: false
+
+- name: Enable subscription-manager repo management
+  when: r_manage_repos.stdout | trim != '1'
+  block:
+    - name: Set manage_repos=1
+      ansible.builtin.command: subscription-manager config --rhsm.manage_repos=1
+      changed_when: true
+
+    - name: Refresh subscription-manager
+      ansible.builtin.command: subscription-manager refresh
+      changed_when: true
+
+- name: Write Ansible configuration with AH token
+  ansible.builtin.copy:
+    dest: ~/.ansible.cfg
+    mode: "0644"
+    content: |
+      [defaults]
+      [galaxy]
+      server_list = automation_hub, validated, galaxy
+      [galaxy_server.automation_hub]
+      url = https://console.redhat.com/api/automation-hub/content/published/
+      auth_url = https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token
+      token={{ ah_token }}
+      [galaxy_server.validated]
+      url = https://console.redhat.com/api/automation-hub/content/validated/
+      auth_url = https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token
+      token={{ ah_token }}
+      [galaxy_server.galaxy]
+      url=https://galaxy.ansible.com/
+      [ssh_connection]
+      ssh_args = -o ControlMaster=auto -o ControlPersist=60s
+      pipelining = True
+
+- name: Install base packages
+  ansible.builtin.dnf:
+    name:
+      - dnf-utils
+      - git
+      - nano
+    state: present
+
+- name: Install IPA client packages
+  ansible.builtin.dnf:
+    name:
+      - ipa-client
+      - sssd
+      - oddjob-mkhomedir
+    state: present
+
+- name: Install Python3 SELinux library
+  ansible.builtin.dnf:
+    name: python3-libsemanage
+    state: present
+
+- name: Clone companion automation repo
+  ansible.builtin.git:
+    repo: https://github.com/rhpds/lb2864-zta-aap-automation.git
+    dest: /tmp/zta-workshop-aap
+    version: main
+    update: true
+    force: false
+
+- name: Create Ansible runtime directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0700"
+  loop:
+    - /tmp/.ansible-cp
+    - /tmp/.ansible-fact-cache
+
+- name: Write collection requirements file
+  ansible.builtin.copy:
+    dest: /tmp/requirements.yml
+    mode: "0644"
+    content: |
+      ---
+      collections:
+        - name: cisco.ios
+        - name: arista.eos
+        - name: ansible.netcommon
+        - name: community.postgresql
+        - name: community.general
+        - name: redhat.rhel_idm
+        - name: netbox.netbox
+        - name: containers.podman
+        - name: ansible.controller
+        - name: ansible.posix
+
+- name: Check if collections are already installed
+  ansible.builtin.shell: ansible-galaxy collection list 2>/dev/null | grep -q "arista.eos"
+  register: r_collections_check
+  failed_when: false
+  changed_when: false
+
+- name: Install Ansible collections
+  ansible.builtin.command: ansible-galaxy install -r /tmp/requirements.yml
+  when: r_collections_check.rc != 0
+  register: r_galaxy_install
+  retries: 3
+  delay: 5
+  until: r_galaxy_install.rc == 0
+
+# awx.awx serves the ansible.controller FQCN via path-based lookup symlink
+# when Automation Hub is unavailable
+- name: Check if ansible.controller collection is installed
+  ansible.builtin.shell: ansible-galaxy collection list 2>/dev/null | grep -q "ansible.controller"
+  register: r_controller_check
+  failed_when: false
+  changed_when: false
+
+- name: Symlink awx.awx as ansible.controller fallback
+  when: r_controller_check.rc != 0
+  block:
+    - name: Create ansible namespace directory
+      ansible.builtin.file:
+        path: ~/.ansible/collections/ansible_collections/ansible
+        state: directory
+        mode: "0755"
+
+    - name: Create symlink
+      ansible.builtin.file:
+        src: ~/.ansible/collections/ansible_collections/awx/awx
+        dest: ~/.ansible/collections/ansible_collections/ansible/controller
+        state: link
+        force: true
+
+- name: Install pip and paramiko for Arista cEOS SSH
+  block:
+    - name: Install python3-pip
+      ansible.builtin.dnf:
+        name: python3-pip
+        state: present
+
+    - name: Install paramiko
+      ansible.builtin.pip:
+        name: paramiko
+        state: present
+
+- name: Copy ansible.cfg to /etc/ansible/
+  ansible.builtin.copy:
+    src: /tmp/zta-workshop-aap/ansible.cfg
+    dest: /etc/ansible/ansible.cfg
+    remote_src: true
+    mode: "0644"
+
+- name: Control bootstrap complete
+  ansible.builtin.debug:
+    msg: "Control bootstrap complete"
