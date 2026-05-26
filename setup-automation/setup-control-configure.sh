@@ -82,11 +82,10 @@ ansible-playbook -i inventory/hosts.ini setup/configure-aap-inventory.yml \
 ansible-playbook -i inventory/hosts.ini setup/configure-aap-netbox.yml \
     -e "${TOKEN_VAR}"
 
-# Section 1 job templates only — subsequent sections are added by module
 # transition scripts (runtime-automation/module-0*/setup-central.sh) as
 # students advance through the lab.
 ansible-playbook -i inventory/hosts.ini setup/configure-aap-project.yml \
-    --tags section1 \
+    --tags templates --skip-tags eda \
     -e "${TOKEN_VAR}"
 
 # EDA project, Decision Environment, event stream, Splunk webhook
