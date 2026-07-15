@@ -215,8 +215,9 @@ systemctl start container-keycloak
 ###############################################################################
 
 echo "Ensuring IdM admin password is current and non-expiring..."
-kadmin.local -q "cpw -pw 'ansible123!' admin"
-kadmin.local -q "modprinc -pwexpire never admin"
+kadmin.local -q 'modprinc -minlife 0 admin'
+kadmin.local -q 'modprinc -pwexpire never admin'
+kadmin.local -q 'cpw -pw ansible123! admin'
 echo 'ansible123!' | kinit admin
 echo "IdM admin password reset and kinit successful"
 
