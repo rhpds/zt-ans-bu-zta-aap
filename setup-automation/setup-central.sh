@@ -211,7 +211,17 @@ fi
 systemctl start container-keycloak
 
 ###############################################################################
-# 9. Copy ansible.cfg and run independent playbooks
+# 9. Reset IdM admin password expiry (image may be older than 90-day policy)
+###############################################################################
+
+echo "Ensuring IdM admin password is current and non-expiring..."
+kadmin.local -q "cpw -pw 'ansible123!' admin"
+kadmin.local -q "modprinc -pwexpire never admin"
+echo 'ansible123!' | kinit admin
+echo "IdM admin password reset and kinit successful"
+
+###############################################################################
+# 10. Copy ansible.cfg and run independent playbooks
 ###############################################################################
 
 cp /tmp/zta-workshop-aap/ansible.cfg /etc/ansible/
