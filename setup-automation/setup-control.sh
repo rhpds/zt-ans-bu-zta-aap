@@ -118,7 +118,7 @@ if [ -d /tmp/zta-workshop-aap/.git ]; then
 else
     rm -rf /tmp/zta-workshop-aap
     retry "Clone ZTA workshop repo" \
-        git clone -b main https://github.com/rhpds/lb2864-zta-aap-automation.git /tmp/zta-workshop-aap
+        git clone -b dev-sep https://github.com/rhpds/lb2864-zta-aap-automation.git /tmp/zta-workshop-aap
 fi
 
 # Ensure Ansible SSH ControlPath and fact-cache dirs are owned by the run user.
